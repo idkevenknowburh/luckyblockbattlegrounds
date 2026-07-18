@@ -196,6 +196,7 @@ local tabPages = {}
 local tabButtons = {}
 local tabNames = {"Blocks", "Universal", "Credits"}
 local openDropdowns = {}
+local switchTab -- forward declaration
 
 for i, name in ipairs(tabNames) do
     -- Tab button in sidebar
@@ -258,7 +259,7 @@ for i, name in ipairs(tabNames) do
 end
 
 -- ========== TAB SWITCHING ==========
-local function switchTab(name)
+function switchTab(name)
     -- Close any open dropdowns
     local toClose = { table.unpack(openDropdowns) }
     for _, fn in ipairs(toClose) do
