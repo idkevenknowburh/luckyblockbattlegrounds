@@ -1,13 +1,14 @@
 -- ============================================
 -- LUCKY BLOCK Battlegrounds - Sheitsa Hub V2
+-- Revamped Modern UI
 -- ============================================
 
--- Services
 local Players = game:GetService("Players")
 local UIS = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
 local RS = game:GetService("ReplicatedStorage")
+local CoreGui = game:GetService("CoreGui")
 local player = Players.LocalPlayer
 local DiscordLink = "https://discord.gg/ZE6vyxgydK"
 
@@ -20,33 +21,46 @@ local Blocks = {
     Galaxy  = RS:WaitForChild("SpawnGalaxyBlock"),
 }
 
--- ========== THEME (dark black, slight transparency) ==========
+-- ========== THEME ==========
 local C = {
-    BG            = Color3.fromRGB(10, 10, 14),
-    Card          = Color3.fromRGB(18, 18, 24),
-    Header        = Color3.fromRGB(14, 14, 19),
-    Text          = Color3.fromRGB(228, 228, 236),
-    Sub           = Color3.fromRGB(115, 115, 132),
-    Accent        = Color3.fromRGB(85, 205, 125),
-    AccentHover   = Color3.fromRGB(100, 220, 140),
-    Border        = Color3.fromRGB(28, 28, 38),
-    Close         = Color3.fromRGB(185, 48, 48),
-    CloseHover    = Color3.fromRGB(210, 65, 65),
+    BG            = Color3.fromRGB(8, 8, 12),
+    BG2           = Color3.fromRGB(12, 12, 18),
+    Card          = Color3.fromRGB(18, 18, 26),
+    CardHover     = Color3.fromRGB(24, 24, 34),
+    Header        = Color3.fromRGB(14, 14, 20),
+    HeaderLine    = Color3.fromRGB(28, 28, 40),
+    Text          = Color3.fromRGB(230, 230, 238),
+    Sub           = Color3.fromRGB(120, 120, 140),
+    Accent        = Color3.fromRGB(80, 200, 130),
+    AccentDim     = Color3.fromRGB(40, 100, 65),
+    AccentHover   = Color3.fromRGB(95, 215, 145),
+    Border        = Color3.fromRGB(30, 30, 42),
+    BorderLight   = Color3.fromRGB(40, 40, 55),
+    Close         = Color3.fromRGB(200, 55, 55),
+    CloseHover    = Color3.fromRGB(225, 75, 75),
     Discord       = Color3.fromRGB(88, 101, 242),
-    DiscordHover  = Color3.fromRGB(102, 115, 255),
-    TabOn         = Color3.fromRGB(85, 205, 125),
-    TabOff        = Color3.fromRGB(38, 38, 50),
-    SectionLabel  = Color3.fromRGB(255, 95, 65),
-    InputBG       = Color3.fromRGB(8, 8, 12),
-    DDHover       = Color3.fromRGB(24, 24, 32),
-    DDBg          = Color3.fromRGB(14, 14, 20),
-    ToggleOn      = Color3.fromRGB(85, 205, 125),
-    ToggleOff     = Color3.fromRGB(38, 38, 50),
-    Black         = Color3.fromRGB(5, 5, 5),
+    DiscordHover  = Color3.fromRGB(105, 118, 255),
+    TabActive     = Color3.fromRGB(80, 200, 130),
+    TabInactive   = Color3.fromRGB(18, 18, 26),
+    SectionLabel  = Color3.fromRGB(255, 100, 70),
+    InputBG       = Color3.fromRGB(6, 6, 10),
+    DDBg          = Color3.fromRGB(12, 12, 18),
+    DDHover       = Color3.fromRGB(22, 22, 32),
+    ToggleOn      = Color3.fromRGB(80, 200, 130),
+    ToggleOff     = Color3.fromRGB(40, 40, 55),
+    Black         = Color3.fromRGB(4, 4, 4),
+    White         = Color3.fromRGB(255, 255, 255),
+    SliderTrack   = Color3.fromRGB(30, 30, 42),
+    SliderFill    = Color3.fromRGB(80, 200, 130),
+    SliderKnob    = Color3.fromRGB(240, 240, 248),
 }
 
--- State
+-- ========== STATE ==========
 local noclipConn = nil
+local noclipOn = false
+local stateWalkSpeed = 16
+local stateJumpPower = 50
+local stateNoClip = false
 
 -- ========== HELPERS ==========
 local function new(class, props, parent)
@@ -55,88 +69,94 @@ local function new(class, props, parent)
     if parent then inst.Parent = parent end
     return inst
 end
-
 local function corner(inst, r) return new("UICorner", {CornerRadius = UDim.new(0, r or 10)}, inst) end
 local function stroke(inst, c, t) return new("UIStroke", {Color = c or C.Border, Thickness = t or 1}, inst) end
-
 local function tw(inst, props, dur, style, dir)
     TweenService:Create(inst, TweenInfo.new(dur or 0.3, style or Enum.EasingStyle.Quad, dir or Enum.EasingDirection.Out), props):Play()
 end
+local function clamp(v, lo, hi) return math.max(lo, math.min(hi, v)) end
 
 -- ========== SCREEN GUI ==========
 local gui = new("ScreenGui", {
     Name = "LBB_SheitsaHub",
     ResetOnSpawn = false,
     ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
-}, game:GetService("CoreGui"))
+}, CoreGui)
 
 -- ========== MAIN FRAME ==========
 local main = new("Frame", {
     Name = "Main",
     Size = UDim2.new(0, 0, 0, 0),
-    Position = UDim2.new(0.5, -172, 0.5, -210),
+    Position = UDim2.new(0.5, -190, 0.5, -240),
     BackgroundColor3 = C.BG,
     BackgroundTransparency = 0.03,
     BorderSizePixel = 0,
 }, gui)
 corner(main, 14)
-stroke(main)
+stroke(main, C.BorderLight, 1)
 
 -- Animate in
 task.defer(function()
-    tw(main, {Size = UDim2.new(0, 344, 0, 420)}, 0.55, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
-    tw(main, {BackgroundTransparency = 0.03}, 0.4)
+    tw(main, {Size = UDim2.new(0, 380, 0, 480)}, 0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
 end)
 
 -- ========== HEADER ==========
 local header = new("Frame", {
-    Size = UDim2.new(1, 0, 0, 48),
+    Size = UDim2.new(1, 0, 0, 52),
     BackgroundColor3 = C.Header,
     BorderSizePixel = 0,
 }, main)
 corner(header, 14)
+-- Cover bottom corners
 new("Frame", {Size = UDim2.new(1, 0, 0, 14), Position = UDim2.new(0, 0, 1, -14), BackgroundColor3 = C.Header, BorderSizePixel = 0}, header)
+-- Bottom accent line
+new("Frame", {Size = UDim2.new(1, 0, 0, 1.5), Position = UDim2.new(0, 0, 1, -1.5), BackgroundColor3 = C.Border, BorderSizePixel = 0}, header)
 
 -- Title
 new("TextLabel", {
     Text = "LUCKY BLOCK Battlegrounds",
-    Size = UDim2.new(1, -76, 0.48, 0), Position = UDim2.new(0, 14, 0, 0),
-    BackgroundTransparency = 1, TextColor3 = C.Text, TextSize = 13.5,
+    Size = UDim2.new(1, -80, 0.52, 0), Position = UDim2.new(0, 16, 0, 0),
+    BackgroundTransparency = 1, TextColor3 = C.Text, TextSize = 14.5,
     Font = Enum.Font.GothamBold, TextXAlignment = Enum.TextXAlignment.Left, TextTruncate = Enum.TextTruncate.AtEnd,
 }, header)
 
 -- Subtitle
 new("TextLabel", {
     Text = "Sheitsa Hub V2",
-    Size = UDim2.new(1, -76, 0.44, 0), Position = UDim2.new(0, 14, 0.52, 0),
-    BackgroundTransparency = 1, TextColor3 = C.Sub, TextSize = 10,
+    Size = UDim2.new(1, -80, 0.42, 0), Position = UDim2.new(0, 16, 0.55, 0),
+    BackgroundTransparency = 1, TextColor3 = C.Sub, TextSize = 10.5,
     Font = Enum.Font.GothamMedium, TextXAlignment = Enum.TextXAlignment.Left,
 }, header)
 
+-- Minimize Button
+local minBtn = new("TextButton", {
+    Size = UDim2.new(0, 28, 0, 28), Position = UDim2.new(1, -66, 0, 12),
+    BackgroundColor3 = C.Card, Text = "\226\128\148", TextColor3 = C.Sub, TextSize = 18,
+    Font = Enum.Font.GothamBold, BorderSizePixel = 0, AutoButtonColor = false,
+}, header)
+corner(minBtn, 7)
+
+minBtn.MouseEnter:Connect(function() tw(minBtn, {BackgroundColor3 = C.CardHover}, 0.15) end)
+minBtn.MouseLeave:Connect(function() tw(minBtn, {BackgroundColor3 = C.Card}, 0.15) end)
+
 -- Close Button
 local closeBtn = new("TextButton", {
-    Size = UDim2.new(0, 30, 0, 30), Position = UDim2.new(1, -38, 0, 9),
-    BackgroundColor3 = C.Close, Text = "✕", TextColor3 = Color3.new(1,1,1),
-    TextSize = 13, Font = Enum.Font.GothamBold, BorderSizePixel = 0, AutoButtonColor = false,
+    Size = UDim2.new(0, 28, 0, 28), Position = UDim2.new(1, -34, 0, 12),
+    BackgroundColor3 = C.Close, Text = "\226\156\156", TextColor3 = C.White, TextSize = 14,
+    Font = Enum.Font.GothamBold, BorderSizePixel = 0, AutoButtonColor = false,
 }, header)
-corner(closeBtn, 8)
-
-closeBtn.MouseButton1Click:Connect(function()
-    tw(main, {Size = UDim2.new(0, 0, 0, 0), BackgroundTransparency = 1}, 0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
-    task.delay(0.3, function() gui:Destroy() end)
-end)
+corner(closeBtn, 7)
 
 closeBtn.MouseEnter:Connect(function() tw(closeBtn, {BackgroundColor3 = C.CloseHover}, 0.15) end)
 closeBtn.MouseLeave:Connect(function() tw(closeBtn, {BackgroundColor3 = C.Close}, 0.15) end)
 
 -- ========== TAB NAVIGATION ==========
 local tabNav = new("Frame", {
-    Size = UDim2.new(1, 0, 0, 38),
-    Position = UDim2.new(0, 0, 0, 48),
-    BackgroundColor3 = Color3.fromRGB(12, 12, 17),
+    Size = UDim2.new(1, 0, 0, 42),
+    Position = UDim2.new(0, 0, 0, 52),
+    BackgroundColor3 = C.BG2,
     BorderSizePixel = 0,
 }, main)
-new("Frame", {Size = UDim2.new(1, 0, 0, 1), Position = UDim2.new(0, 0, 1, -1), BackgroundColor3 = C.Border, BorderSizePixel = 0}, tabNav)
 
 local tabNames = {"Lucky Blocks", "Universal", "Credits"}
 local tabButtons = {}
@@ -147,29 +167,37 @@ for i, name in ipairs(tabNames) do
     local btn = new("TextButton", {
         Size = UDim2.new(1 / tabCount, 0, 1, 0),
         Position = UDim2.new((i - 1) / tabCount, 0, 0, 0),
-        BackgroundColor3 = isActive and C.TabOn or C.TabOff,
+        BackgroundColor3 = isActive and C.TabActive or C.TabInactive,
         Text = name,
         TextColor3 = isActive and C.Black or C.Sub,
-        TextSize = 11.5,
+        TextSize = 12,
         Font = Enum.Font.GothamSemibold,
         BorderSizePixel = 0,
         AutoButtonColor = false,
     }, tabNav)
 
+    -- Active indicator line
     if isActive then
-        new("Frame", {
-            Size = UDim2.new(0.5, 0, 0, 2), Position = UDim2.new(0.25, 0, 1, -2),
+        local indicator = new("Frame", {
+            Size = UDim2.new(0.4, 0, 0, 2.5), Position = UDim2.new(0.3, 0, 1, -2.5),
             BackgroundColor3 = C.Black, BorderSizePixel = 0,
         }, btn)
     end
+
+    btn.MouseEnter:Connect(function()
+        if not isActive then tw(btn, {BackgroundColor3 = C.CardHover}, 0.15) end
+    end)
+    btn.MouseLeave:Connect(function()
+        if not isActive then tw(btn, {BackgroundColor3 = C.TabInactive}, 0.15) end
+    end)
 
     tabButtons[name] = btn
 end
 
 -- ========== CONTENT AREA ==========
 local contentArea = new("Frame", {
-    Size = UDim2.new(1, -20, 1, -96),
-    Position = UDim2.new(0, 10, 0, 92),
+    Size = UDim2.new(1, -20, 1, -108),
+    Position = UDim2.new(0, 10, 0, 98),
     BackgroundTransparency = 1,
     ClipsDescendants = true,
 }, main)
@@ -178,36 +206,71 @@ local tabFrames = {}
 for _, name in ipairs(tabNames) do
     local scroll = new("ScrollingFrame", {
         Size = UDim2.new(1, 0, 1, 0),
-        BackgroundTransparency = 1,
-        BorderSizePixel = 0,
-        ScrollBarThickness = 3,
-        ScrollBarImageColor3 = Color3.fromRGB(45, 45, 58),
-        CanvasSize = UDim2.new(0, 0, 0, 0),
-        AutomaticCanvasSize = Enum.AutomaticSize.Y,
+        BackgroundTransparency = 1, BorderSizePixel = 0,
+        ScrollBarThickness = 3, ScrollBarImageColor3 = Color3.fromRGB(50, 50, 65),
+        CanvasSize = UDim2.new(0, 0, 0, 0), AutomaticCanvasSize = Enum.AutomaticSize.Y,
         Visible = (name == "Lucky Blocks"),
     }, contentArea)
-    new("UIPadding", {PaddingTop = UDim.new(0, 6), PaddingBottom = UDim.new(0, 10), PaddingLeft = UDim.new(0, 2), PaddingRight = UDim.new(0, 2)}, scroll)
+    new("UIPadding", {PaddingTop = UDim.new(0, 8), PaddingBottom = UDim.new(0, 10), PaddingLeft = UDim.new(0, 4), PaddingRight = UDim.new(0, 4)}, scroll)
     new("UIListLayout", {SortOrder = Enum.SortOrder.LayoutOrder, Padding = UDim.new(0, 8)}, scroll)
     tabFrames[name] = scroll
 end
 
--- ========== COMPONENT: Section Label ==========
+-- ========== STATUS BAR ==========
+new("Frame", {
+    Size = UDim2.new(1, 0, 0, 26),
+    Position = UDim2.new(0, 0, 1, -26),
+    BackgroundColor3 = C.Header,
+    BorderSizePixel = 0,
+}, main)
+-- Cover top corners of status bar
+new("Frame", {Size = UDim2.new(1, 0, 0, 14), Position = UDim2.new(0, 0, 0, 0), BackgroundColor3 = C.Header, BorderSizePixel = 0}, main:FindFirstChildWhichIsA("Frame", false))
+new("TextLabel", {
+    Text = "Sheitsa Hub V2  |  Lucky Block Battlegrounds",
+    Size = UDim2.new(1, -16, 0, 26), Position = UDim2.new(0, 8, 1, -26),
+    BackgroundTransparency = 1, TextColor3 = C.Sub, TextSize = 9.5,
+    Font = Enum.Font.GothamMedium, TextXAlignment = Enum.TextXAlignment.Left,
+}, main)
+
+-- ========== COMPONENTS ==========
+
+-- Section Label
 local function makeSection(parent, text, order)
     new("TextLabel", {
-        Text = text, Size = UDim2.new(1, 0, 0, 20),
-        BackgroundTransparency = 1, TextColor3 = C.SectionLabel,
-        TextSize = 11.5, Font = Enum.Font.GothamBold,
+        Text = text, Size = UDim2.new(1, 0, 0, 22), BackgroundTransparency = 1,
+        TextColor3 = C.SectionLabel, TextSize = 11.5, Font = Enum.Font.GothamBold,
         TextXAlignment = Enum.TextXAlignment.Left, LayoutOrder = order or 0,
     }, parent)
 end
 
--- ========== COMPONENT: Dropdown ==========
+-- Card-style Button
+local function makeButton(parent, text, bgColor, hoverColor, order, cb)
+    local wrap = new("Frame", {
+        Size = UDim2.new(1, 0, 0, 42), BackgroundColor3 = bgColor,
+        BorderSizePixel = 0, LayoutOrder = order or 0,
+    }, parent)
+    corner(wrap, 10)
+    stroke(wrap, C.BorderLight, 1)
+
+    local btn = new("TextButton", {
+        Size = UDim2.new(1, 0, 1, 0), BackgroundTransparency = 1,
+        Text = text, TextColor3 = C.Black, TextSize = 13.5,
+        Font = Enum.Font.GothamSemibold, BorderSizePixel = 0, AutoButtonColor = false,
+    }, wrap)
+
+    wrap.MouseEnter:Connect(function() tw(wrap, {BackgroundColor3 = hoverColor}, 0.2) end)
+    wrap.MouseLeave:Connect(function() tw(wrap, {BackgroundColor3 = bgColor}, 0.2) end)
+    if cb then btn.MouseButton1Click:Connect(cb) end
+    return wrap, btn
+end
+
+-- Dropdown
 local function makeDropdown(parent, label, options, default, order)
     local wrap = new("Frame", {
         Size = UDim2.new(1, 0, 0, 0), BackgroundTransparency = 1,
         AutomaticSize = Enum.AutomaticSize.Y, LayoutOrder = order or 0,
     }, parent)
-    new("UIListLayout", {SortOrder = Enum.SortOrder.LayoutOrder, Padding = UDim.new(0, 4)}, wrap)
+    new("UIListLayout", {SortOrder = Enum.SortOrder.LayoutOrder, Padding = UDim.new(0, 5)}, wrap)
 
     new("TextLabel", {
         Text = label, Size = UDim2.new(1, 0, 0, 16), BackgroundTransparency = 1,
@@ -218,72 +281,145 @@ local function makeDropdown(parent, label, options, default, order)
     local selected = default or options[1]
     local isOpen = false
 
-    local selectBtn = new("TextButton", {
-        Size = UDim2.new(1, 0, 0, 34), BackgroundColor3 = C.InputBG,
-        Text = "  ▾  " .. selected, TextColor3 = C.Text,
-        TextSize = 12, Font = Enum.Font.Gotham, BorderSizePixel = 0,
-        TextXAlignment = Enum.TextXAlignment.Left, AutoButtonColor = false,
+    local selectWrap = new("Frame", {
+        Size = UDim2.new(1, 0, 0, 36), BackgroundColor3 = C.InputBG, BorderSizePixel = 0,
     }, wrap)
-    corner(selectBtn, 8)
-    stroke(selectBtn)
+    corner(selectWrap, 9)
+    stroke(selectWrap, C.Border, 1)
+
+    local selectBtn = new("TextButton", {
+        Size = UDim2.new(1, 0, 1, 0), BackgroundTransparency = 1,
+        Text = "  \226\149\190  " .. selected, TextColor3 = C.Text,
+        TextSize = 12.5, Font = Enum.Font.Gotham, BorderSizePixel = 0,
+        TextXAlignment = Enum.TextXAlignment.Left, AutoButtonColor = false,
+    }, selectWrap)
 
     local listFrame = new("Frame", {
         Size = UDim2.new(1, 0, 0, 0), BackgroundColor3 = C.DDBg,
-        BorderSizePixel = 0, ClipsDescendants = true,
+        BorderSizePixel = 0, ClipsDescendants = true, ZIndex = 5,
     }, wrap)
-    corner(listFrame, 8)
-    stroke(listFrame)
+    corner(listFrame, 9)
+    stroke(listFrame, C.Border, 1)
     new("UIListLayout", {SortOrder = Enum.SortOrder.LayoutOrder}, listFrame)
 
     for i, opt in ipairs(options) do
         local oBtn = new("TextButton", {
-            Size = UDim2.new(1, 0, 0, 30), BackgroundColor3 = C.DDBg,
+            Size = UDim2.new(1, 0, 0, 32), BackgroundColor3 = C.DDBg,
             Text = "   " .. opt, TextColor3 = C.Text, TextSize = 12,
             Font = Enum.Font.Gotham, BorderSizePixel = 0,
             TextXAlignment = Enum.TextXAlignment.Left, AutoButtonColor = false,
-            LayoutOrder = i,
+            LayoutOrder = i, ZIndex = 5,
         }, listFrame)
-        oBtn.MouseEnter:Connect(function() oBtn.BackgroundColor3 = C.DDHover end)
-        oBtn.MouseLeave:Connect(function() oBtn.BackgroundColor3 = C.DDBg end)
+        oBtn.MouseEnter:Connect(function() tw(oBtn, {BackgroundColor3 = C.DDHover}, 0.12) end)
+        oBtn.MouseLeave:Connect(function() tw(oBtn, {BackgroundColor3 = C.DDBg}, 0.12) end)
         oBtn.MouseButton1Click:Connect(function()
-            selected = opt
-            selectBtn.Text = "  ▾  " .. opt
-            isOpen = false
+            selected = opt; selectBtn.Text = "  \226\149\190  " .. opt; isOpen = false
             tw(listFrame, {Size = UDim2.new(1, 0, 0, 0)}, 0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
         end)
     end
 
     selectBtn.MouseButton1Click:Connect(function()
         isOpen = not isOpen
-        tw(listFrame, {Size = UDim2.new(1, 0, 0, isOpen and (#options * 30) or 0)}, 0.2)
+        tw(listFrame, {Size = UDim2.new(1, 0, 0, isOpen and (#options * 32 + 4) or 0)}, 0.2)
     end)
 
     return { Get = function() return selected end }
 end
 
--- ========== COMPONENT: Button ==========
-local function makeButton(parent, text, bgColor, hoverColor, order, cb)
-    local btn = new("TextButton", {
-        Size = UDim2.new(1, 0, 0, 38), BackgroundColor3 = bgColor,
-        Text = text, TextColor3 = C.Black, TextSize = 13,
-        Font = Enum.Font.GothamSemibold, BorderSizePixel = 0,
-        AutoButtonColor = false, LayoutOrder = order or 0,
+-- Manual Slider
+local function makeSlider(parent, label, minVal, maxVal, defaultVal, order, callback)
+    local wrap = new("Frame", {
+        Size = UDim2.new(1, 0, 0, 0), BackgroundTransparency = 1,
+        AutomaticSize = Enum.AutomaticSize.Y, LayoutOrder = order or 0,
     }, parent)
-    corner(btn, 9)
+    new("UIListLayout", {SortOrder = Enum.SortOrder.LayoutOrder, Padding = UDim.new(0, 5)}, wrap)
 
-    btn.MouseEnter:Connect(function() tw(btn, {BackgroundColor3 = hoverColor}, 0.15) end)
-    btn.MouseLeave:Connect(function() tw(btn, {BackgroundColor3 = bgColor}, 0.15) end)
-    if cb then btn.MouseButton1Click:Connect(cb) end
-    return btn
+    -- Label row
+    local labelRow = new("Frame", {
+        Size = UDim2.new(1, 0, 0, 18), BackgroundTransparency = 1,
+    }, wrap)
+    new("TextLabel", {
+        Text = label, Size = UDim2.new(0.7, 0, 1, 0), BackgroundTransparency = 1,
+        TextColor3 = C.Sub, TextSize = 11, Font = Enum.Font.GothamMedium,
+        TextXAlignment = Enum.TextXAlignment.Left,
+    }, labelRow)
+    local valLabel = new("TextLabel", {
+        Text = tostring(defaultVal), Size = UDim2.new(0.3, 0, 1, 0), Position = UDim2.new(0.7, 0, 0, 0),
+        BackgroundTransparency = 1, TextColor3 = C.Text, TextSize = 12,
+        Font = Enum.Font.GothamBold, TextXAlignment = Enum.TextXAlignment.Right,
+    }, labelRow)
+
+    -- Slider track
+    local trackWrap = new("Frame", {
+        Size = UDim2.new(1, 0, 0, 32), BackgroundTransparency = 1,
+    }, wrap)
+
+    local track = new("Frame", {
+        Size = UDim2.new(1, 0, 0, 6), Position = UDim2.new(0, 0, 0.5, -3),
+        BackgroundColor3 = C.SliderTrack, BorderSizePixel = 0,
+    }, trackWrap)
+    corner(track, 3)
+
+    local fill = new("Frame", {
+        Size = UDim2.new(0, 0, 1, 0), BackgroundColor3 = C.SliderFill, BorderSizePixel = 0,
+    }, track)
+    corner(fill, 3)
+
+    local knob = new("Frame", {
+        Size = UDim2.new(0, 18, 0, 18), Position = UDim2.new(0, 0, 0.5, -9),
+        BackgroundColor3 = C.SliderKnob, BorderSizePixel = 0,
+    }, trackWrap)
+    corner(knob, 9)
+    stroke(knob, C.Accent, 2)
+
+    local currentVal = defaultVal
+    local sliding = false
+
+    local function updateVisual(val)
+        local pct = (val - minVal) / (maxVal - minVal)
+        fill.Size = UDim2.new(pct, 0, 1, 0)
+        knob.Position = UDim2.new(pct, -9, 0.5, -9)
+        valLabel.Text = tostring(math.round(val))
+    end
+
+    updateVisual(defaultVal)
+
+    local function setValueFromX(x)
+        local relX = clamp((x - track.AbsolutePosition.X) / track.AbsoluteSize.X, 0, 1)
+        local val = minVal + relX * (maxVal - minVal)
+        val = math.round(val)
+        currentVal = val
+        updateVisual(val)
+        if callback then callback(val) end
+    end
+
+    trackWrap.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            sliding = true
+            setValueFromX(input.Position.X)
+        end
+    end)
+    trackWrap.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            sliding = false
+        end
+    end)
+    UIS.InputChanged:Connect(function(input)
+        if sliding and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+            setValueFromX(input.Position.X)
+        end
+    end)
+
+    return { GetValue = function() return currentVal end, SetValue = function(v) currentVal = v; updateVisual(v) end }
 end
 
--- ========== COMPONENT: Input Row (label + input + button) ==========
+-- Input Row (label + input + button)
 local function makeInputRow(parent, labelText, defaultVal, btnText, order, callback)
     local wrap = new("Frame", {
         Size = UDim2.new(1, 0, 0, 0), BackgroundTransparency = 1,
         AutomaticSize = Enum.AutomaticSize.Y, LayoutOrder = order or 0,
     }, parent)
-    new("UIListLayout", {SortOrder = Enum.SortOrder.LayoutOrder, Padding = UDim.new(0, 4)}, wrap)
+    new("UIListLayout", {SortOrder = Enum.SortOrder.LayoutOrder, Padding = UDim.new(0, 5)}, wrap)
 
     new("TextLabel", {
         Text = labelText, Size = UDim2.new(1, 0, 0, 16), BackgroundTransparency = 1,
@@ -297,13 +433,11 @@ local function makeInputRow(parent, labelText, defaultVal, btnText, order, callb
     new("UIListLayout", {SortOrder = Enum.SortOrder.LayoutOrder, Padding = UDim.new(0, 6), FillDirection = Enum.FillDirection.Horizontal}, row)
 
     local input = new("TextBox", {
-        Size = UDim2.new(1, -100, 1, 0), BackgroundColor3 = C.InputBG,
-        Text = defaultVal or "", TextColor3 = C.Text,
-        PlaceholderText = "Enter value...", PlaceholderColor3 = Color3.fromRGB(65, 65, 80),
+        Size = UDim2.new(1, -110, 1, 0), BackgroundColor3 = C.InputBG, Text = defaultVal or "",
+        TextColor3 = C.Text, PlaceholderText = "Enter value...", PlaceholderColor3 = Color3.fromRGB(65, 65, 80),
         TextSize = 13, Font = Enum.Font.Gotham, BorderSizePixel = 0,
     }, row)
-    corner(input, 8)
-    stroke(input)
+    corner(input, 9); stroke(input, C.Border, 1)
 
     makeButton(row, btnText, C.Accent, C.AccentHover, 0, function()
         local v = tonumber(input.Text)
@@ -313,37 +447,110 @@ local function makeInputRow(parent, labelText, defaultVal, btnText, order, callb
     return input
 end
 
+-- Toggle
+local function makeToggle(parent, label, defaultOn, order, callback)
+    local wrap = new("Frame", {
+        Size = UDim2.new(1, 0, 0, 44), BackgroundColor3 = C.Card,
+        BorderSizePixel = 0, LayoutOrder = order or 0,
+    }, parent)
+    corner(wrap, 10)
+    stroke(wrap, C.Border, 1)
+
+    new("TextLabel", {
+        Text = "  " .. label, Size = UDim2.new(1, -64, 1, 0), BackgroundTransparency = 1,
+        TextColor3 = defaultOn and C.White or C.Sub, TextSize = 13,
+        Font = Enum.Font.GothamMedium, TextXAlignment = Enum.TextXAlignment.Left,
+    }, wrap)
+
+    local toggleBg = new("Frame", {
+        Size = UDim2.new(0, 44, 0, 24), Position = UDim2.new(1, -54, 0.5, -12),
+        BackgroundColor3 = defaultOn and C.ToggleOn or C.ToggleOff, BorderSizePixel = 0,
+    }, wrap)
+    corner(toggleBg, 12)
+
+    local dot = new("Frame", {
+        Size = UDim2.new(0, 18, 0, 18),
+        Position = defaultOn and UDim2.new(1, -21, 0.5, -9) or UDim2.new(0, 3, 0.5, -9),
+        BackgroundColor3 = C.White, BorderSizePixel = 0,
+    }, toggleBg)
+    corner(dot, 9)
+
+    local on = defaultOn
+
+    local btn = new("TextButton", {
+        Size = UDim2.new(1, 0, 1, 0), BackgroundTransparency = 1,
+        Text = "", AutoButtonColor = false,
+    }, wrap)
+
+    wrap.MouseEnter:Connect(function() tw(wrap, {BackgroundColor3 = C.CardHover}, 0.15) end)
+    wrap.MouseLeave:Connect(function() tw(wrap, {BackgroundColor3 = C.Card}, 0.15) end)
+
+    btn.MouseButton1Click:Connect(function()
+        on = not on
+        tw(dot, {Position = on and UDim2.new(1, -21, 0.5, -9) or UDim2.new(0, 3, 0.5, -9)}, 0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+        tw(toggleBg, {BackgroundColor3 = on and C.ToggleOn or C.ToggleOff}, 0.25)
+        -- Update text color
+        for _, child in ipairs(wrap:GetChildren()) do
+            if child:IsA("TextLabel") then
+                tw(child, {TextColor3 = on and C.White or C.Sub}, 0.2)
+            end
+        end
+        if callback then callback(on) end
+    end)
+
+    return { IsOn = function() return on end }
+end
+
 -- ==========================================
 --  TAB 1: LUCKY BLOCKS
 -- ==========================================
 local lbTab = tabFrames["Lucky Blocks"]
 
-makeSection(lbTab, "— Spawn Blocks", 0)
+makeSection(lbTab, "-- Spawn Blocks", 0)
 local blockDD = makeDropdown(lbTab, "Select Block Type", {"Lucky Block", "Super Block", "Diamond Block"}, "Lucky Block", 1)
 
 makeButton(lbTab, "Spawn Block", C.Accent, C.AccentHover, 2, function()
-    local map = {
-        ["Lucky Block"]   = Blocks.Lucky,
-        ["Super Block"]   = Blocks.Super,
-        ["Diamond Block"] = Blocks.Diamond,
-    }
+    local map = { ["Lucky Block"] = Blocks.Lucky, ["Super Block"] = Blocks.Super, ["Diamond Block"] = Blocks.Diamond }
     local remote = map[blockDD.Get()]
     if remote then remote:FireServer() end
 end)
 
+-- Spawn amount for normal blocks
+local amountInput, _ = makeInputRow(lbTab, "Spawn Multiple (1-50)", "5", "Spawn x Blocks", 3, function(amount)
+    amount = clamp(amount, 1, 50)
+    local map = { ["Lucky Block"] = Blocks.Lucky, ["Super Block"] = Blocks.Super, ["Diamond Block"] = Blocks.Diamond }
+    local remote = map[blockDD.Get()]
+    if remote then
+        for i = 1, amount do
+            remote:FireServer()
+            if i < amount then task.wait(0.1) end
+        end
+    end
+end)
+
 -- Spacer
-new("Frame", {Size = UDim2.new(1, 0, 0, 8), BackgroundTransparency = 1, LayoutOrder = 3}, lbTab)
+new("Frame", {Size = UDim2.new(1, 0, 0, 8), BackgroundTransparency = 1, LayoutOrder = 4}, lbTab)
 
-makeSection(lbTab, "— VERY OP (Gamepass Blocks)", 4)
-local gpDD = makeDropdown(lbTab, "Select Gamepass Block", {"Rainbow Lucky Block", "Galaxy Lucky Block"}, "Rainbow Lucky Block", 5)
+makeSection(lbTab, "-- VERY OP (Gamepass Blocks)", 5)
+local gpDD = makeDropdown(lbTab, "Select Gamepass Block", {"Rainbow Lucky Block", "Galaxy Lucky Block"}, "Rainbow Lucky Block", 6)
 
-makeButton(lbTab, "Spawn Gamepass Block", C.SectionLabel, Color3.fromRGB(255, 115, 85), 6, function()
-    local map = {
-        ["Rainbow Lucky Block"] = Blocks.Rainbow,
-        ["Galaxy Lucky Block"]  = Blocks.Galaxy,
-    }
+makeButton(lbTab, "Spawn Gamepass Block", C.SectionLabel, Color3.fromRGB(255, 115, 85), 7, function()
+    local map = { ["Rainbow Lucky Block"] = Blocks.Rainbow, ["Galaxy Lucky Block"] = Blocks.Galaxy }
     local remote = map[gpDD.Get()]
     if remote then remote:FireServer() end
+end)
+
+-- Spawn amount for gamepass blocks
+local gpAmountInput, _ = makeInputRow(lbTab, "Spawn Multiple (1-50)", "3", "Spawn x Blocks", 8, function(amount)
+    amount = clamp(amount, 1, 50)
+    local map = { ["Rainbow Lucky Block"] = Blocks.Rainbow, ["Galaxy Lucky Block"] = Blocks.Galaxy }
+    local remote = map[gpDD.Get()]
+    if remote then
+        for i = 1, amount do
+            remote:FireServer()
+            if i < amount then task.wait(0.1) end
+        end
+    end
 end)
 
 -- ==========================================
@@ -351,39 +558,27 @@ end)
 -- ==========================================
 local uniTab = tabFrames["Universal"]
 
-makeSection(uniTab, "— Movement", 0)
-
-makeInputRow(uniTab, "WalkSpeed", "50", "Set", 1, function(v)
+makeSection(uniTab, "-- Movement", 0)
+local wsSlider = makeSlider(uniTab, "WalkSpeed", 10, 200, 16, 1, function(v)
+    stateWalkSpeed = v
     if player.Character and player.Character:FindFirstChild("Humanoid") then
         player.Character.Humanoid.WalkSpeed = v
     end
 end)
 
-makeInputRow(uniTab, "JumpPower", "100", "Set", 2, function(v)
+local jpSlider = makeSlider(uniTab, "JumpPower", 10, 500, 50, 2, function(v)
+    stateJumpPower = v
     if player.Character and player.Character:FindFirstChild("Humanoid") then
         player.Character.Humanoid.JumpPower = v
     end
 end)
 
--- NoClip
-makeSection(uniTab, "— Physics", 3)
+makeSection(uniTab, "-- Physics", 3)
 
-local noclipOn = false
-local noclipBtn = new("TextButton", {
-    Size = UDim2.new(1, 0, 0, 38), BackgroundColor3 = C.ToggleOff,
-    Text = "  NoClip: OFF", TextColor3 = C.Sub, TextSize = 13,
-    Font = Enum.Font.GothamSemibold, BorderSizePixel = 0,
-    AutoButtonColor = false, LayoutOrder = 4,
-}, uniTab)
-corner(noclipBtn, 9)
-stroke(noclipBtn)
-
-noclipBtn.MouseButton1Click:Connect(function()
-    noclipOn = not noclipOn
-    if noclipOn then
-        noclipBtn.Text = "  NoClip: ON"
-        noclipBtn.BackgroundColor3 = C.ToggleOn
-        noclipBtn.TextColor3 = C.Black
+local ncToggle = makeToggle(uniTab, "NoClip", false, 4, function(on)
+    stateNoClip = on
+    noclipOn = on
+    if on then
         noclipConn = RunService.Stepped:Connect(function()
             if player.Character then
                 for _, p in ipairs(player.Character:GetDescendants()) do
@@ -392,9 +587,6 @@ noclipBtn.MouseButton1Click:Connect(function()
             end
         end)
     else
-        noclipBtn.Text = "  NoClip: OFF"
-        noclipBtn.BackgroundColor3 = C.ToggleOff
-        noclipBtn.TextColor3 = C.Sub
         if noclipConn then noclipConn:Disconnect(); noclipConn = nil end
         if player.Character then
             for _, p in ipairs(player.Character:GetDescendants()) do
@@ -404,13 +596,14 @@ noclipBtn.MouseButton1Click:Connect(function()
     end
 end)
 
--- Get Admin
-makeSection(uniTab, "— Tools", 5)
-
-local adminBtn = makeButton(uniTab, "Get Admin (Infinite Yield)", C.Discord, C.DiscordHover, 6, function()
+makeSection(uniTab, "-- Tools", 5)
+local adminBtn, _ = makeButton(uniTab, "Infinite Yield", C.Discord, C.DiscordHover, 6, function()
     loadstring(game:HttpGet("https://raw.githubusercontent.com/EdgeIY/infiniteyield/master/source", true))()
 end)
-adminBtn.TextColor3 = Color3.new(1, 1, 1)
+-- Fix text color for discord button
+for _, child in ipairs(adminBtn:GetChildren()) do
+    if child:IsA("TextButton") then child.TextColor3 = C.White end
+end
 
 -- ==========================================
 --  TAB 3: CREDITS
@@ -418,54 +611,60 @@ adminBtn.TextColor3 = Color3.new(1, 1, 1)
 local crTab = tabFrames["Credits"]
 
 new("TextLabel", {
-    Text = "LUCKY BLOCK Battlegrounds", Size = UDim2.new(1, 0, 0, 26),
-    BackgroundTransparency = 1, TextColor3 = C.Text, TextSize = 16,
+    Text = "LUCKY BLOCK Battlegrounds", Size = UDim2.new(1, 0, 0, 28),
+    BackgroundTransparency = 1, TextColor3 = C.Text, TextSize = 17,
     Font = Enum.Font.GothamBold, TextXAlignment = Enum.TextXAlignment.Left, LayoutOrder = 0,
 }, crTab)
 
 new("TextLabel", {
-    Text = "Sheitsa Hub V2", Size = UDim2.new(1, 0, 0, 20),
-    BackgroundTransparency = 1, TextColor3 = C.Accent, TextSize = 13,
+    Text = "Sheitsa Hub V2", Size = UDim2.new(1, 0, 0, 22),
+    BackgroundTransparency = 1, TextColor3 = C.Accent, TextSize = 13.5,
     Font = Enum.Font.GothamSemibold, TextXAlignment = Enum.TextXAlignment.Left, LayoutOrder = 1,
 }, crTab)
 
--- Separator
 new("Frame", {Size = UDim2.new(1, 0, 0, 1), BackgroundColor3 = C.Border, BorderSizePixel = 0, LayoutOrder = 2}, crTab)
 
 new("TextLabel", {
-    Text = "Script made by the Sheitsa Dev Team.", Size = UDim2.new(1, 0, 0, 20),
-    BackgroundTransparency = 1, TextColor3 = C.Sub, TextSize = 12,
+    Text = "Script made by the Sheitsa Dev Team.", Size = UDim2.new(1, 0, 0, 22),
+    BackgroundTransparency = 1, TextColor3 = C.Sub, TextSize = 12.5,
     Font = Enum.Font.GothamMedium, TextXAlignment = Enum.TextXAlignment.Left, LayoutOrder = 3,
 }, crTab)
 
 new("TextLabel", {
-    Text = "All credits go to Sheitsa Dev Team\nfor creating this script.", Size = UDim2.new(1, 0, 0, 36),
-    BackgroundTransparency = 1, TextColor3 = C.Sub, TextSize = 11.5,
+    Text = "All credits go to Sheitsa Dev Team\nfor creating this script.", Size = UDim2.new(1, 0, 0, 40),
+    BackgroundTransparency = 1, TextColor3 = C.Sub, TextSize = 12,
     Font = Enum.Font.Gotham, TextXAlignment = Enum.TextXAlignment.Left,
     TextWrapped = true, LayoutOrder = 4,
 }, crTab)
 
--- Spacer
 new("Frame", {Size = UDim2.new(1, 0, 0, 12), BackgroundTransparency = 1, LayoutOrder = 5}, crTab)
 
-local discBtn = makeButton(crTab, "Join our Discord", C.Discord, C.DiscordHover, 6, function()
+local discBtn, discBtnInner = makeButton(crTab, "Join our Discord", C.Discord, C.DiscordHover, 6, function()
     pcall(setclipboard, DiscordLink)
-    discBtn.Text = "✓  Link Copied!"
-    task.delay(2, function() discBtn.Text = "Join our Discord" end)
+    discBtnInner.Text = "Link Copied!"
+    task.delay(2, function() discBtnInner.Text = "Join our Discord" end)
 end)
-discBtn.TextColor3 = Color3.new(1, 1, 1)
+discBtnInner.TextColor3 = C.White
 
 -- ==========================================
---  TAB SWITCHING
+--  TAB SWITCHING (with fade)
 -- ==========================================
 local function switchTab(name)
     for n, frame in pairs(tabFrames) do
-        frame.Visible = (n == name)
+        if n == name then
+            frame.Visible = true
+            frame.BackgroundTransparency = 0.5
+            tw(frame, {BackgroundTransparency = 0}, 0.2)
+        else
+            frame.Visible = false
+        end
     end
     for n, btn in pairs(tabButtons) do
         local active = (n == name)
-        btn.BackgroundColor3 = active and C.TabOn or C.TabOff
-        btn.TextColor3 = active and C.Black or C.Sub
+        tw(btn, {
+            BackgroundColor3 = active and C.TabActive or C.TabInactive,
+            TextColor3 = active and C.Black or C.Sub,
+        }, 0.25)
     end
 end
 
@@ -473,22 +672,130 @@ for name, btn in pairs(tabButtons) do
     btn.MouseButton1Click:Connect(function() switchTab(name) end)
 end
 
--- ========== DRAG ==========
-local dragging, dragStart, startPos
+-- ==========================================
+--  RESPAWN PERSISTENCE
+-- ==========================================
+player.CharacterAdded:Connect(function(char)
+    local humanoid = char:WaitForChild("Humanoid")
+    humanoid.WalkSpeed = stateWalkSpeed
+    humanoid.JumpPower = stateJumpPower
+
+    task.wait(1)
+    if stateNoClip then
+        if noclipConn then noclipConn:Disconnect() end
+        noclipConn = RunService.Stepped:Connect(function()
+            if player.Character then
+                for _, p in ipairs(player.Character:GetDescendants()) do
+                    if p:IsA("BasePart") then p.CanCollide = false end
+                end
+            end
+        end)
+    end
+end)
+
+-- ==========================================
+--  MINIMIZE / CLOSE + TOGGLE BUTTON
+-- ==========================================
+local mainVisible = true
+
+-- Toggle button (top center, draggable)
+local toggleGui = new("ScreenGui", {
+    Name = "LBB_Toggle",
+    ResetOnSpawn = false,
+    ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+}, CoreGui)
+
+local toggleBtn = new("TextButton", {
+    Size = UDim2.new(0, 44, 0, 44),
+    Position = UDim2.new(0.5, -22, 0, 14),
+    BackgroundColor3 = Color3.fromRGB(12, 12, 16),
+    Text = "",
+    BorderSizePixel = 0,
+    AutoButtonColor = false,
+    Visible = false,
+}, toggleGui)
+corner(toggleBtn, 11)
+local tStroke = Instance.new("UIStroke", toggleBtn)
+tStroke.Color = Color3.fromRGB(190, 190, 200)
+tStroke.Thickness = 1.5
+
+local tIcon = new("TextLabel", toggleBtn)
+tIcon.Size = UDim2.new(1, 0, 1, 0)
+tIcon.Text = "LB"
+tIcon.TextSize = 13
+tIcon.BackgroundTransparency = 1
+tIcon.TextColor3 = Color3.fromRGB(200, 200, 210)
+tIcon.Font = Enum.Font.GothamBold
+
+local function hideMain()
+    mainVisible = false
+    tw(main, {Size = UDim2.new(0, 0, 0, 0), BackgroundTransparency = 1}, 0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+    task.delay(0.3, function()
+        main.Visible = false
+        toggleBtn.Visible = true
+        tIcon.Text = "LB"
+        tStroke.Color = Color3.fromRGB(190, 190, 200)
+        toggleBtn.BackgroundColor3 = Color3.fromRGB(12, 12, 16)
+    end)
+end
+
+local function showMain()
+    mainVisible = true
+    toggleBtn.Visible = false
+    main.Visible = true
+    main.Size = UDim2.new(0, 0, 0, 0)
+    main.BackgroundTransparency = 1
+    tw(main, {Size = UDim2.new(0, 380, 0, 480), BackgroundTransparency = 0.03}, 0.45, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+    tIcon.Text = "\226\128\148"
+    tStroke.Color = Color3.fromRGB(80, 80, 90)
+    toggleBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 36)
+end
+
+closeBtn.MouseButton1Click:Connect(hideMain)
+minBtn.MouseButton1Click:Connect(hideMain)
+
+-- Drag for toggle button (with click threshold)
+local tbDrag, tbDragStart, tbStartPos, tbDidDrag
+toggleBtn.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        tbDrag = true; tbDidDrag = false
+        tbDragStart = input.Position; tbStartPos = toggleBtn.Position
+    end
+end)
+toggleBtn.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        if not tbDidDrag then
+            if mainVisible then hideMain() else showMain() end
+        end
+        tbDrag = false
+    end
+end)
+UIS.InputChanged:Connect(function(input)
+    if tbDrag and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+        local d = input.Position - tbDragStart
+        if math.abs(d.X) > 5 or math.abs(d.Y) > 5 then tbDidDrag = true end
+        toggleBtn.Position = UDim2.new(tbStartPos.X.Scale, tbStartPos.X.Offset + d.X, tbStartPos.Y.Scale, tbStartPos.Y.Offset + d.Y)
+    end
+end)
+
+-- ==========================================
+--  DRAG MAIN FRAME (header)
+-- ==========================================
+local mDrag, mDragStart, mStartPos
 header.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        dragging = true; dragStart = input.Position; startPos = main.Position
+        mDrag = true; mDragStart = input.Position; mStartPos = main.Position
     end
 end)
 header.InputEnded:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        dragging = false
+        mDrag = false
     end
 end)
 UIS.InputChanged:Connect(function(input)
-    if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-        local d = input.Position - dragStart
-        main.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + d.X, startPos.Y.Scale, startPos.Y.Offset + d.Y)
+    if mDrag and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+        local d = input.Position - mDragStart
+        main.Position = UDim2.new(mStartPos.X.Scale, mStartPos.X.Offset + d.X, mStartPos.Y.Scale, mStartPos.Y.Offset + d.Y)
     end
 end)
 
