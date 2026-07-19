@@ -1,6 +1,6 @@
 -- ============================================
 -- LUCKY BLOCK Battlegrounds - Sheitsa Hub V2
--- UI: Fluent-Modded by StyearX
+-- UI: Fluent by dawid-scripts
 -- ============================================
 
 local Players = game:GetService("Players")
@@ -29,7 +29,7 @@ local spawnAmount = 5
 local gpSpawnAmount = 3
 
 -- ========== FLUENT UI ==========
-local Fluent = loadstring(game:HttpGet("https://github.com/StyearX/Fluent-Modded/releases/download/Fluent/FluentPro"))()
+local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
 
 local Window = Fluent:CreateWindow({
     Title       = "LBB | Sheitsa Hub V2",
@@ -37,7 +37,7 @@ local Window = Fluent:CreateWindow({
     TabWidth    = 120,
     Size        = UDim2.fromOffset(550, 420),
     Acrylic     = true,
-    Theme       = "AMOLED",
+    Theme       = "Amoled",
     MinimizeKey = Enum.KeyCode.RightControl,
     ConfigurationSaving = {
         Enabled = false,
@@ -245,7 +245,7 @@ Tabs.Credits:AddParagraph({
 
 Tabs.Credits:AddParagraph({
     Title   = "UI Library",
-    Content = "Fluent-Modded by StyearX on YouTube\nhttps://github.com/StyearX/Fluent-Modded",
+    Content = "Fluent by dawid-scripts\nhttps://github.com/dawid-scripts/Fluent",
 })
 
 Tabs.Credits:AddSection("Social")
