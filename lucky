@@ -31,6 +31,18 @@ local selectedGPBlock = "Rainbow Lucky Block"
 local spawnAmount = 5
 local gpSpawnAmount = 3
 
+-- Auto spawn on respawn
+local autoSpawnEnabled = false
+local autoSpawnBlock = "Lucky Block"
+local autoSpawnAmount = 1
+
+-- Revenge kill
+local revengeKillEnabled = false
+local lastKiller = nil
+local lastKillerName = "None"
+local killerLabel = nil
+local revengeToggleCtrl = nil
+
 -- ========== COLORS ==========
 local C = {
     BG = Color3.fromRGB(10, 10, 14),
@@ -259,7 +271,7 @@ for i, name in ipairs(tabNames) do
 end
 
 -- ========== TAB SWITCHING ==========
-function switchTab(name)
+switchTab = function(name)
     -- Close any open dropdowns
     local toClose = { table.unpack(openDropdowns) }
     for _, fn in ipairs(toClose) do
@@ -391,7 +403,14 @@ local function makeToggle(parent, title, desc, default, callback, order)
         callback(isOn)
     end)
 
-    return container
+    return container, {
+        setState = function(val)
+            isOn = val
+            updateVisual()
+            callback(val)
+        end,
+        getState = function() return isOn end,
+    }
 end
 
 -- Button
@@ -750,6 +769,29 @@ makeButton(page1, "Spawn Multiple (GP)", function()
     end
 end, 10)
 
+makeSectionHeader(page1, "Auto Spawn on Respawn", 11)
+
+makeDropdown(page1, "Block Type (Auto)", {"Lucky Block", "Super Block", "Diamond Block", "Rainbow Lucky Block", "Galaxy Lucky Block"}, "Lucky Block", function(sel)
+    autoSpawnBlock = sel
+end, 12)
+
+makeSlider(page1, "Auto Spawn Amount", 1, 50, 1, function(val)
+    autoSpawnAmount = val
+end, 13)
+
+makeToggle(page1, "Auto Spawn on Respawn", "Auto-spawn selected blocks when you respawn/die", false, function(state)
+    autoSpawnEnabled = state
+end, 14)
+
+makeSectionHeader(page1, "Revenge Kill", 15)
+
+killerLabel = makeLabel(page1, "Last killer: None", 16)
+
+local _, revengeCtrl = makeToggle(page1, "Revenge Kill", "On respawn: get 5 Galaxy Blocks + TP to killer (one-time)", false, function(state)
+    revengeKillEnabled = state
+end, 17)
+revengeToggleCtrl = revengeCtrl
+
 -- ========== POPULATE TAB 2: UNIVERSAL ==========
 local page2 = tabPages["Universal"]
 
@@ -814,12 +856,93 @@ end, 7)
 -- ========== SET DEFAULT TAB ==========
 switchTab("Blocks")
 
+-- ========== DEATH TRACKING ==========
+local function setupDeathTracking()
+    local char = player.Character
+    if not char then return end
+    local humanoid = char:FindFirstChild("Humanoid")
+    if not humanoid then return end
+
+    humanoid.Died:Connect(function()
+        local hrp = char:FindFirstChild("HumanoidRootPart")
+        if hrp then
+            local myPos = hrp.Position
+            local closest = nil
+            local closestDist = math.huge
+            for _, p in ipairs(Players:GetPlayers()) do
+                if p ~= player and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+                    local dist = (p.Character.HumanoidRootPart.Position - myPos).Magnitude
+                    if dist < closestDist and dist < 150 then
+                        closestDist = dist
+                        closest = p
+                    end
+                end
+            end
+            if closest then
+                lastKiller = closest
+                lastKillerName = closest.Name
+                if killerLabel then
+                    killerLabel.Text = "Last killer: " .. lastKillerName
+                end
+            end
+        end
+    end)
+end
+
+-- Initial death tracking
+if player.Character then
+    setupDeathTracking()
+end
+
 -- ========== RESPAWN PERSISTENCE ==========
 player.CharacterAdded:Connect(function(char)
     local humanoid = char:WaitForChild("Humanoid")
     humanoid.WalkSpeed = stateWalkSpeed
     humanoid.JumpPower = stateJumpPower
-    task.wait(1)
+
+    -- Set up death tracking for new character
+    setupDeathTracking()
+
+    task.wait(2)
+
+    -- Auto spawn blocks on respawn
+    if autoSpawnEnabled then
+        local blockMap = {
+            ["Lucky Block"] = Blocks.Lucky,
+            ["Super Block"] = Blocks.Super,
+            ["Diamond Block"] = Blocks.Diamond,
+            ["Rainbow Lucky Block"] = Blocks.Rainbow,
+            ["Galaxy Lucky Block"] = Blocks.Galaxy,
+        }
+        local remote = blockMap[autoSpawnBlock]
+        if remote then
+            for i = 1, math.clamp(autoSpawnAmount, 1, 50) do
+                remote:FireServer()
+                if i < autoSpawnAmount then task.wait(0.1) end
+            end
+        end
+    end
+
+    -- Revenge kill
+    if revengeKillEnabled and lastKiller then
+        -- Spawn 5 galaxy blocks
+        for i = 1, 5 do
+            Blocks.Galaxy:FireServer()
+            if i < 5 then task.wait(0.1) end
+        end
+        -- TP to killer
+        task.wait(0.5)
+        if lastKiller.Character and lastKiller.Character:FindFirstChild("HumanoidRootPart") and char:FindFirstChild("HumanoidRootPart") then
+            char.HumanoidRootPart.CFrame = lastKiller.Character.HumanoidRootPart.CFrame + lastKiller.Character.HumanoidRootPart.CFrame.LookVector * 3
+        end
+        -- Auto-untoggle (one-time use)
+        revengeKillEnabled = false
+        if revengeToggleCtrl then
+            revengeToggleCtrl.setState(false)
+        end
+    end
+
+    -- NoClip persistence
     if stateNoClip then
         if noclipConn then noclipConn:Disconnect() end
         noclipConn = RunService.Stepped:Connect(function()
