@@ -43,6 +43,17 @@ local lastKillerName = "None"
 local killerLabel = nil
 local revengeToggleCtrl = nil
 
+-- ESP
+local espEnabled = false
+local espObjects = {}       -- player -> {highlight, billboard, nameLabel, infoLabel}
+local espCharConns = {}     -- player -> CharacterAdded connection
+local espUpdateConn = nil
+
+-- Kill Aura
+local killAuraEnabled = false
+local killAuraConn = nil
+local savedHitboxSizes = {} -- part -> original Size
+
 -- ========== COLORS ==========
 local C = {
     BG = Color3.fromRGB(10, 10, 14),
@@ -581,15 +592,28 @@ local function makeSlider(parent, title, min, max, default, callback, order)
     return container
 end
 
--- Dropdown
+-- Dropdown (FIXED: uses wrapper frame so options push content below instead of overlapping)
 local function makeDropdown(parent, title, options, default, callback, order)
-    local header = new("TextButton", parent, {
+    -- Wrapper frame that expands when dropdown is open
+    local wrapper = new("Frame", parent, {
+        Size = UDim2.new(1, 0, 0, 0),
+        AutomaticSize = Enum.AutomaticSize.Y,
+        BackgroundTransparency = 1,
+        LayoutOrder = order,
+        BorderSizePixel = 0,
+    })
+    new("UIListLayout", wrapper, {
+        SortOrder = Enum.SortOrder.LayoutOrder,
+        Padding = UDim.new(0, 0),
+    })
+
+    local header = new("TextButton", wrapper, {
         Size = UDim2.new(1, 0, 0, 38),
         BackgroundColor3 = C.Card,
         Text = "",
         AutoButtonColor = false,
         BorderSizePixel = 0,
-        LayoutOrder = order,
+        LayoutOrder = 1,
     })
     new("UICorner", header, { CornerRadius = UDim.new(0, 8) })
     new("UIStroke", header, { Color = C.Border, Thickness = 1 })
@@ -617,15 +641,14 @@ local function makeDropdown(parent, title, options, default, callback, order)
         Font = Enum.Font.Gotham,
     })
 
-    -- Options container (overlays below header)
-    local optionsFrame = new("Frame", header, {
-        Position = UDim2.new(0, 0, 1, 2),
+    -- Options container (flows inside wrapper, pushes content below)
+    local optionsFrame = new("Frame", wrapper, {
         Size = UDim2.new(1, 0, 0, #options * 32),
         BackgroundColor3 = C.Card,
         Visible = false,
-        ZIndex = 10,
         BorderSizePixel = 0,
         ClipsDescendants = true,
+        LayoutOrder = 2,
     })
     new("UICorner", optionsFrame, { CornerRadius = UDim.new(0, 8) })
     new("UIStroke", optionsFrame, { Color = C.Border, Thickness = 1 })
@@ -649,7 +672,6 @@ local function makeDropdown(parent, title, options, default, callback, order)
             Font = Enum.Font.Gotham,
             TextXAlignment = Enum.TextXAlignment.Left,
             BorderSizePixel = 0,
-            ZIndex = 11,
             AutoButtonColor = false,
         })
 
@@ -693,7 +715,248 @@ local function makeDropdown(parent, title, options, default, callback, order)
         end
     end)
 
-    return header
+    return wrapper
+end
+
+-- ========== ESP SYSTEM ==========
+local function createESPForPlayer(targetPlayer)
+    if targetPlayer == player then return end
+    if espObjects[targetPlayer] then return end
+
+    local function setupESP()
+        if not targetPlayer.Character then return end
+        local hrp = targetPlayer.Character:FindFirstChild("HumanoidRootPart")
+        if not hrp then return end
+
+        -- Remove old ESP objects if any
+        if espObjects[targetPlayer] then
+            if espObjects[targetPlayer].highlight and espObjects[targetPlayer].highlight.Parent then
+                espObjects[targetPlayer].highlight:Destroy()
+            end
+            if espObjects[targetPlayer].billboard and espObjects[targetPlayer].billboard.Parent then
+                espObjects[targetPlayer].billboard:Destroy()
+            end
+        end
+
+        -- Highlight (box ESP)
+        local highlight = new("Highlight", targetPlayer.Character, {
+            Name = "SheitsaESP",
+            FillTransparency = 0.8,
+            OutlineColor = Color3.fromRGB(255, 50, 50),
+            FillColor = Color3.fromRGB(255, 50, 50),
+            OutlineTransparency = 0,
+        })
+
+        -- Billboard for name + distance
+        local billboard = new("BillboardGui", hrp, {
+            Name = "SheitsaESP_Info",
+            Size = UDim2.new(0, 200, 0, 50),
+            StudsOffset = Vector3.new(0, 4, 0),
+            AlwaysOnTop = true,
+        })
+
+        local nameLabel = new("TextLabel", billboard, {
+            Size = UDim2.new(1, 0, 0.5, 0),
+            BackgroundTransparency = 1,
+            TextColor3 = Color3.fromRGB(255, 255, 255),
+            TextStrokeTransparency = 0.3,
+            TextStrokeColor3 = Color3.fromRGB(0, 0, 0),
+            TextSize = 13,
+            Font = Enum.Font.GothamBold,
+            Text = targetPlayer.DisplayName,
+        })
+
+        local infoLabel = new("TextLabel", billboard, {
+            Size = UDim2.new(1, 0, 0.5, 0),
+            Position = UDim2.new(0, 0, 0.5, 0),
+            BackgroundTransparency = 1,
+            TextColor3 = Color3.fromRGB(200, 200, 200),
+            TextStrokeTransparency = 0.3,
+            TextStrokeColor3 = Color3.fromRGB(0, 0, 0),
+            TextSize = 11,
+            Font = Enum.Font.Gotham,
+            Text = targetPlayer.Name .. " | --m",
+        })
+
+        espObjects[targetPlayer] = {
+            highlight = highlight,
+            billboard = billboard,
+            nameLabel = nameLabel,
+            infoLabel = infoLabel,
+        }
+    end
+
+    -- Setup if character exists
+    if targetPlayer.Character then
+        setupESP()
+    end
+
+    -- Listen for new characters
+    espCharConns[targetPlayer] = targetPlayer.CharacterAdded:Connect(function(c)
+        task.wait(1)
+        setupESP()
+    end)
+end
+
+local function removeESPForPlayer(targetPlayer)
+    local obj = espObjects[targetPlayer]
+    if obj then
+        if obj.highlight and obj.highlight.Parent then obj.highlight:Destroy() end
+        if obj.billboard and obj.billboard.Parent then obj.billboard:Destroy() end
+        espObjects[targetPlayer] = nil
+    end
+    if espCharConns[targetPlayer] then
+        espCharConns[targetPlayer]:Disconnect()
+        espCharConns[targetPlayer] = nil
+    end
+end
+
+local function clearAllESP()
+    for p, _ in pairs(espObjects) do
+        removeESPForPlayer(p)
+    end
+    espObjects = {}
+    espCharConns = {}
+end
+
+local function enableESP()
+    espEnabled = true
+    -- Add ESP to all current players
+    for _, p in ipairs(Players:GetPlayers()) do
+        createESPForPlayer(p)
+    end
+    -- Listen for new players
+    if espUpdateConn then espUpdateConn:Disconnect() end
+    espUpdateConn = RunService.RenderStepped:Connect(function()
+        if not espEnabled then return end
+        local myChar = player.Character
+        local myHrp = myChar and myChar:FindFirstChild("HumanoidRootPart")
+        if not myHrp then return end
+        for p, obj in pairs(espObjects) do
+            if p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+                local dist = math.floor((p.Character.HumanoidRootPart.Position - myHrp.Position).Magnitude)
+                obj.infoLabel.Text = p.Name .. " | " .. dist .. "m"
+            end
+        end
+    end)
+end
+
+local function disableESP()
+    espEnabled = false
+    clearAllESP()
+    if espUpdateConn then espUpdateConn:Disconnect(); espUpdateConn = nil end
+end
+
+-- Listen for new players joining while ESP is on
+Players.PlayerAdded:Connect(function(p)
+    if espEnabled then
+        createESPForPlayer(p)
+    end
+end)
+
+Players.PlayerRemoving:Connect(function(p)
+    removeESPForPlayer(p)
+end)
+
+-- ========== KILL AURA SYSTEM ==========
+local function startKillAura()
+    if killAuraConn then killAuraConn:Disconnect() end
+    savedHitboxSizes = {}
+
+    killAuraConn = RunService.Heartbeat:Connect(function()
+        if not killAuraEnabled or not player.Character then return end
+        local char = player.Character
+        local hrp = char:FindFirstChild("HumanoidRootPart")
+        if not hrp then return end
+
+        -- Restore sizes for parts that are no longer in an equipped tool
+        for part, origSize in pairs(savedHitboxSizes) do
+            if not part.Parent or not part:IsDescendantOf(char) then
+                if part.Parent then
+                    part.Size = origSize
+                end
+                savedHitboxSizes[part] = nil
+            end
+        end
+
+        -- Find equipped tool
+        local equippedTool = nil
+        for _, child in ipairs(char:GetChildren()) do
+            if child:IsA("Tool") then
+                equippedTool = child
+                break
+            end
+        end
+
+        if not equippedTool then
+            -- No tool equipped - restore all saved hitboxes
+            for part, origSize in pairs(savedHitboxSizes) do
+                if part.Parent then part.Size = origSize end
+            end
+            savedHitboxSizes = {}
+            return
+        end
+
+        -- Strategy 1: Look for parts with "hitbox" or "hit" in name
+        local foundHitbox = false
+        for _, part in ipairs(equippedTool:GetDescendants()) do
+            if part:IsA("BasePart") then
+                local nameLower = part.Name:lower()
+                if nameLower:find("hitbox") or nameLower:find("hit_box") or nameLower:find("hit") then
+                    if not savedHitboxSizes[part] then
+                        savedHitboxSizes[part] = part.Size
+                    end
+                    part.Size = Vector3.new(25, 25, 25)
+                    foundHitbox = true
+                end
+            end
+        end
+
+        if not foundHitbox then
+            -- Strategy 2: Find small/invisible parts (likely hitboxes)
+            for _, part in ipairs(equippedTool:GetDescendants()) do
+                if part:IsA("BasePart") and part ~= hrp then
+                    local isVisual = false
+                    -- MeshParts with meshes are usually visual
+                    if part:IsA("MeshPart") and part.MeshId ~= "" then
+                        isVisual = true
+                    end
+                    -- Parts with SpecialMesh children are visual
+                    if part:FindFirstChildOfClass("SpecialMesh") then
+                        isVisual = true
+                    end
+
+                    if not isVisual then
+                        if not savedHitboxSizes[part] then
+                            savedHitboxSizes[part] = part.Size
+                        end
+                        part.Size = Vector3.new(25, 25, 25)
+                        foundHitbox = true
+                    end
+                end
+            end
+        end
+
+        if not foundHitbox then
+            -- Strategy 3: Enlarge ALL parts in the tool
+            for _, part in ipairs(equippedTool:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    if not savedHitboxSizes[part] then
+                        savedHitboxSizes[part] = part.Size
+                    end
+                    part.Size = Vector3.new(25, 25, 25)
+                end
+            end
+        end
+    end)
+end
+
+local function stopKillAura()
+    if killAuraConn then killAuraConn:Disconnect(); killAuraConn = nil end
+    for part, origSize in pairs(savedHitboxSizes) do
+        if part.Parent then part.Size = origSize end
+    end
+    savedHitboxSizes = {}
 end
 
 -- ========== POPULATE TAB 1: LUCKY BLOCKS ==========
@@ -787,7 +1050,7 @@ makeSectionHeader(page1, "Revenge Kill", 15)
 
 killerLabel = makeLabel(page1, "Last killer: None", 16)
 
-local _, revengeCtrl = makeToggle(page1, "Revenge Kill", "On respawn: get 5 Galaxy Blocks + TP to killer (one-time)", false, function(state)
+local _, revengeCtrl = makeToggle(page1, "Revenge Kill", "On respawn: get weapons, TP to killer, fling them, TP back (one-time)", false, function(state)
     revengeKillEnabled = state
 end, 17)
 revengeToggleCtrl = revengeCtrl
@@ -833,11 +1096,30 @@ makeToggle(page2, "NoClip", "Walk through walls", false, function(state)
     end
 end, 5)
 
-makeSectionHeader(page2, "Tools", 6)
+makeSectionHeader(page2, "Combat", 6)
+
+makeToggle(page2, "ESP", "See all players through walls (highlight + name + distance)", false, function(state)
+    if state then
+        enableESP()
+    else
+        disableESP()
+    end
+end, 7)
+
+makeToggle(page2, "Kill Aura", "Extends weapon hitbox when a tool is equipped", false, function(state)
+    killAuraEnabled = state
+    if state then
+        startKillAura()
+    else
+        stopKillAura()
+    end
+end, 8)
+
+makeSectionHeader(page2, "Tools", 9)
 
 makeButton(page2, "Infinite Yield", function()
     loadstring(game:HttpGet("https://raw.githubusercontent.com/EdgeIY/infiniteyield/master/source", true))()
-end, 7)
+end, 10)
 
 -- ========== POPULATE TAB 3: CREDITS ==========
 local page3 = tabPages["Credits"]
@@ -923,22 +1205,58 @@ player.CharacterAdded:Connect(function(char)
         end
     end
 
-    -- Revenge kill
-    if revengeKillEnabled and lastKiller then
-        -- Spawn 5 galaxy blocks
-        for i = 1, 5 do
-            Blocks.Galaxy:FireServer()
-            if i < 5 then task.wait(0.1) end
-        end
-        -- TP to killer
-        task.wait(0.5)
-        if lastKiller.Character and lastKiller.Character:FindFirstChild("HumanoidRootPart") and char:FindFirstChild("HumanoidRootPart") then
-            char.HumanoidRootPart.CFrame = lastKiller.Character.HumanoidRootPart.CFrame + lastKiller.Character.HumanoidRootPart.CFrame.LookVector * 3
-        end
-        -- Auto-untoggle (one-time use)
-        revengeKillEnabled = false
-        if revengeToggleCtrl then
-            revengeToggleCtrl.setState(false)
+    -- Revenge Kill (UPGRADED: wait for weapons, fling killer, TP back)
+    if revengeKillEnabled and lastKiller and lastKiller.Character and lastKiller.Character:FindFirstChild("HumanoidRootPart") then
+        local myHrp = char:FindFirstChild("HumanoidRootPart")
+        if myHrp then
+            -- Spawn 5 Galaxy Blocks
+            for i = 1, 5 do
+                Blocks.Galaxy:FireServer()
+                if i < 5 then task.wait(0.1) end
+            end
+
+            -- Wait for player to get a weapon (up to 15 seconds)
+            local hasWeapon = false
+            local waitStart = tick()
+            repeat
+                for _, child in ipairs(char:GetChildren()) do
+                    if child:IsA("Tool") then
+                        hasWeapon = true
+                        break
+                    end
+                end
+                if not hasWeapon then task.wait(0.3) end
+            until hasWeapon or (tick() - waitStart) > 15
+
+            -- Save original CFrame
+            local originalCFrame = myHrp.CFrame
+
+            -- TP to killer
+            local killerHrp = lastKiller.Character:FindFirstChild("HumanoidRootPart")
+            if killerHrp then
+                myHrp.CFrame = killerHrp.CFrame + killerHrp.CFrame.LookVector * 3
+                task.wait(0.5)
+
+                -- Fling the killer (apply massive upward + random velocity)
+                pcall(function()
+                    killerHrp.AssemblyLinearVelocity = Vector3.new(
+                        math.random(-5000, 5000),
+                        10000,
+                        math.random(-5000, 5000)
+                    )
+                end)
+
+                task.wait(1)
+
+                -- TP back to original position
+                myHrp.CFrame = originalCFrame
+            end
+
+            -- Auto-untoggle (one-time use)
+            revengeKillEnabled = false
+            if revengeToggleCtrl then
+                revengeToggleCtrl.setState(false)
+            end
         end
     end
 
