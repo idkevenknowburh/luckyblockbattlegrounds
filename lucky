@@ -1,14 +1,11 @@
 -- ============================================
 -- LUCKY BLOCK Battlegrounds - Sheitsa Hub V2
--- Custom AMOLED Dark UI (No External Libraries)
+-- UI: Fluent-Modded by StyearX
 -- ============================================
 
 local Players = game:GetService("Players")
-local UIS = game:GetService("UserInputService")
-local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
 local RS = game:GetService("ReplicatedStorage")
-local CoreGui = game:GetService("CoreGui")
 local player = Players.LocalPlayer
 local DiscordLink = "https://discord.gg/ZE6vyxgydK"
 
@@ -31,1236 +28,245 @@ local selectedGPBlock = "Rainbow Lucky Block"
 local spawnAmount = 5
 local gpSpawnAmount = 3
 
--- Auto spawn on respawn
-local autoSpawnEnabled = false
-local autoSpawnBlock = "Lucky Block"
-local autoSpawnAmount = 1
+-- ========== FLUENT UI ==========
+local Fluent = loadstring(game:HttpGet("https://github.com/StyearX/Fluent-Modded/releases/download/Fluent/FluentPro"))()
 
--- Revenge kill
-local revengeKillEnabled = false
-local lastKiller = nil
-local lastKillerName = "None"
-local killerLabel = nil
-local revengeToggleCtrl = nil
+local Window = Fluent:CreateWindow({
+    Title       = "LBB | Sheitsa Hub V2",
+    SubTitle    = "by Sheitsa",
+    TabWidth    = 120,
+    Size        = UDim2.fromOffset(550, 420),
+    Acrylic     = true,
+    Theme       = "AMOLED",
+    MinimizeKey = Enum.KeyCode.RightControl,
+    ConfigurationSaving = {
+        Enabled = false,
+    },
+})
 
--- ESP
-local espEnabled = false
-local espObjects = {}       -- player -> {highlight, billboard, nameLabel, infoLabel}
-local espCharConns = {}     -- player -> CharacterAdded connection
-local espUpdateConn = nil
-
--- Kill Aura
-local killAuraEnabled = false
-local killAuraConn = nil
-local savedHitboxSizes = {} -- part -> original Size
-
--- ========== COLORS ==========
-local C = {
-    BG = Color3.fromRGB(10, 10, 14),
-    Card = Color3.fromRGB(18, 18, 24),
-    CardHover = Color3.fromRGB(24, 24, 32),
-    TitleBar = Color3.fromRGB(14, 14, 20),
-    Text = Color3.fromRGB(230, 230, 235),
-    TextSub = Color3.fromRGB(130, 130, 145),
-    Accent = Color3.fromRGB(100, 220, 140),
-    AccentDark = Color3.fromRGB(60, 160, 100),
-    Border = Color3.fromRGB(30, 30, 40),
-    ToggleOn = Color3.fromRGB(100, 220, 140),
-    ToggleOff = Color3.fromRGB(45, 45, 58),
-    Discord = Color3.fromRGB(88, 101, 242),
-    SliderTrack = Color3.fromRGB(30, 30, 40),
+local Tabs = {
+    Blocks    = Window:AddTab({ Title = "Blocks",    Icon = "box" }),
+    Universal = Window:AddTab({ Title = "Universal", Icon = "user" }),
+    Credits   = Window:AddTab({ Title = "Credits",   Icon = "heart" }),
 }
 
--- ========== HELPERS ==========
-local function new(class, parent, props)
-    local inst = Instance.new(class)
-    if props then
-        for k, v in pairs(props) do
-            inst[k] = v
-        end
+-- ==========================================
+--  BLOCKS TAB
+-- ==========================================
+Tabs.Blocks:AddSection("Spawn Blocks")
+
+Tabs.Blocks:AddDropdown({
+    Title       = "Block Type",
+    Description = "Select which block to spawn",
+    Values      = {"Lucky Block", "Super Block", "Diamond Block"},
+    Default     = "Lucky Block",
+    Callback    = function(Value)
+        selectedBlock = Value
     end
-    inst.Parent = parent
-    return inst
-end
-
-local function tw(obj, duration, props)
-    local t = TweenService:Create(obj, TweenInfo.new(duration, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), props)
-    t:Play()
-    return t
-end
-
--- ========== SCREEN GUI ==========
-local screenGui = new("ScreenGui", CoreGui, {
-    Name = "LBB_SheitsaHub",
-    ResetOnSpawn = false,
-    ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
 })
 
--- ========== MAIN FRAME ==========
-local mainFrame = new("Frame", screenGui, {
-    Name = "Main",
-    Position = UDim2.new(0.5, -210, 0.5, -250),
-    Size = UDim2.new(0, 420, 0, 500),
-    BackgroundColor3 = C.BG,
-    BorderSizePixel = 0,
-    ClipsDescendants = true,
-})
-new("UICorner", mainFrame, { CornerRadius = UDim.new(0, 12) })
-new("UIStroke", mainFrame, { Color = C.Border, Thickness = 1 })
-
--- ========== TITLE BAR ==========
-local titleBar = new("Frame", mainFrame, {
-    Name = "TitleBar",
-    Position = UDim2.new(0, 0, 0, 0),
-    Size = UDim2.new(1, 0, 0, 42),
-    BackgroundColor3 = C.TitleBar,
-    BorderSizePixel = 0,
-})
-new("UICorner", titleBar, { CornerRadius = UDim.new(0, 12) })
-
--- Cover bottom corners of title bar so only top corners are rounded
-new("Frame", titleBar, {
-    Name = "CornerCover",
-    Position = UDim2.new(0, 0, 1, -14),
-    Size = UDim2.new(1, 0, 0, 14),
-    BackgroundColor3 = C.TitleBar,
-    BorderSizePixel = 0,
-})
-
--- Title text
-new("TextLabel", titleBar, {
-    Name = "Title",
-    Position = UDim2.new(0, 16, 0, 0),
-    Size = UDim2.new(1, -60, 1, 0),
-    BackgroundTransparency = 1,
-    Text = "LBB | Sheitsa Hub V2",
-    TextColor3 = C.Text,
-    TextSize = 14,
-    Font = Enum.Font.GothamBold,
-    TextXAlignment = Enum.TextXAlignment.Left,
-})
-
--- Close button
-local closeBtn = new("TextButton", titleBar, {
-    Name = "Close",
-    Position = UDim2.new(1, -34, 0, 8),
-    Size = UDim2.new(0, 26, 0, 26),
-    BackgroundColor3 = Color3.fromRGB(200, 55, 55),
-    Text = "\u{2715}",
-    TextColor3 = Color3.fromRGB(255, 255, 255),
-    TextSize = 12,
-    Font = Enum.Font.Gotham,
-    BorderSizePixel = 0,
-    AutoButtonColor = false,
-})
-new("UICorner", closeBtn, { CornerRadius = UDim.new(0, 8) })
-closeBtn.MouseButton1Click:Connect(function()
-    screenGui.Enabled = false
-end)
-
--- ========== TITLE BAR DRAGGING ==========
-local isDragging = false
-local dragStart = Vector3.zero
-local dragStartPos = UDim2.new()
-
-titleBar.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        isDragging = true
-        dragStart = input.Position
-        dragStartPos = mainFrame.Position
-        input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.End then
-                isDragging = false
-            end
-        end)
-    end
-end)
-
-UIS.InputChanged:Connect(function(input)
-    if isDragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-        local delta = input.Position - dragStart
-        mainFrame.Position = UDim2.new(
-            dragStartPos.X.Scale, dragStartPos.X.Offset + delta.X,
-            dragStartPos.Y.Scale, dragStartPos.Y.Offset + delta.Y
-        )
-    end
-end)
-
--- ========== SIDEBAR ==========
-local sidebar = new("Frame", mainFrame, {
-    Name = "Sidebar",
-    Position = UDim2.new(0, 0, 0, 42),
-    Size = UDim2.new(0, 95, 1, -42),
-    BackgroundColor3 = C.Card,
-    BorderSizePixel = 0,
-})
-
--- Right border for sidebar
-new("Frame", sidebar, {
-    Name = "RightBorder",
-    Size = UDim2.new(0, 1, 1, 0),
-    Position = UDim2.new(1, -1, 0, 0),
-    BackgroundColor3 = C.Border,
-    BorderSizePixel = 0,
-})
-
--- ========== CONTENT AREA ==========
-local contentArea = new("Frame", mainFrame, {
-    Name = "ContentArea",
-    Position = UDim2.new(0, 95, 0, 42),
-    Size = UDim2.new(1, -95, 1, -42),
-    BackgroundTransparency = 1,
-    BorderSizePixel = 0,
-    ClipsDescendants = true,
-})
-
--- ========== TAB SYSTEM ==========
-local tabPages = {}
-local tabButtons = {}
-local tabNames = {"Blocks", "Universal", "Credits"}
-local openDropdowns = {}
-local switchTab -- forward declaration
-
-for i, name in ipairs(tabNames) do
-    -- Tab button in sidebar
-    local btn = new("TextButton", sidebar, {
-        Name = name .. "Tab",
-        Position = UDim2.new(0, 4, 0, 8 + (i - 1) * 36),
-        Size = UDim2.new(1, -8, 0, 34),
-        BackgroundTransparency = 1,
-        Text = name,
-        TextColor3 = C.TextSub,
-        TextSize = 11,
-        Font = Enum.Font.GothamMedium,
-        BorderSizePixel = 0,
-        AutoButtonColor = false,
-    })
-
-    -- Active indicator (accent bar on left edge)
-    local indicator = new("Frame", btn, {
-        Name = "Indicator",
-        Size = UDim2.new(0, 2, 1, -4),
-        Position = UDim2.new(0, 0, 0.5, 0),
-        AnchorPoint = Vector2.new(0, 0.5),
-        BackgroundColor3 = C.Accent,
-        Visible = false,
-        BorderSizePixel = 0,
-    })
-
-    tabButtons[name] = { button = btn, indicator = indicator }
-
-    btn.MouseButton1Click:Connect(function()
-        switchTab(name)
-    end)
-
-    -- Tab page (ScrollingFrame)
-    local page = new("ScrollingFrame", contentArea, {
-        Name = name .. "Page",
-        Size = UDim2.new(1, 0, 1, 0),
-        BackgroundTransparency = 1,
-        ScrollBarThickness = 4,
-        ScrollBarImageColor3 = Color3.fromRGB(40, 40, 55),
-        BorderSizePixel = 0,
-        Visible = false,
-        CanvasSize = UDim2.new(0, 0, 0, 0),
-        AutomaticCanvasSize = Enum.AutomaticSize.Y,
-    })
-
-    new("UIPadding", page, {
-        PaddingTop = UDim.new(0, 14),
-        PaddingBottom = UDim.new(0, 14),
-        PaddingLeft = UDim.new(0, 14),
-        PaddingRight = UDim.new(0, 14),
-    })
-
-    new("UIListLayout", page, {
-        Padding = UDim.new(0, 5),
-        SortOrder = Enum.SortOrder.LayoutOrder,
-    })
-
-    tabPages[name] = page
-end
-
--- ========== TAB SWITCHING ==========
-switchTab = function(name)
-    -- Close any open dropdowns
-    local toClose = { table.unpack(openDropdowns) }
-    for _, fn in ipairs(toClose) do
-        fn()
-    end
-    openDropdowns = {}
-
-    for tabName, page in pairs(tabPages) do
-        page.Visible = (tabName == name)
-        if tabName == name then
-            page.CanvasPosition = Vector2.new(0, 0)
-        end
-    end
-    for tabName, data in pairs(tabButtons) do
-        local isActive = (tabName == name)
-        data.button.BackgroundColor3 = isActive and C.CardHover or Color3.fromRGB(0, 0, 0)
-        data.button.BackgroundTransparency = isActive and 0 or 1
-        data.indicator.Visible = isActive
-        data.button.TextColor3 = isActive and C.Text or C.TextSub
-    end
-end
-
--- ========== UI ELEMENT BUILDERS ==========
-
--- Section Header
-local function makeSectionHeader(parent, text, order)
-    return new("TextLabel", parent, {
-        Size = UDim2.new(1, 0, 0, 26),
-        BackgroundTransparency = 1,
-        Text = text:upper(),
-        TextColor3 = C.TextSub,
-        TextSize = 10,
-        Font = Enum.Font.GothamBold,
-        TextXAlignment = Enum.TextXAlignment.Left,
-        LayoutOrder = order,
-    })
-end
-
--- Label (auto height)
-local function makeLabel(parent, text, order)
-    return new("TextLabel", parent, {
-        Size = UDim2.new(1, 0, 0, 0),
-        AutomaticSize = Enum.AutomaticSize.Y,
-        BackgroundTransparency = 1,
-        Text = text,
-        TextColor3 = C.Text,
-        TextSize = 12,
-        Font = Enum.Font.Gotham,
-        TextWrapped = true,
-        TextXAlignment = Enum.TextXAlignment.Left,
-        LayoutOrder = order,
-    })
-end
-
--- Toggle
-local function makeToggle(parent, title, desc, default, callback, order)
-    local container = new("Frame", parent, {
-        Size = UDim2.new(1, 0, 0, 50),
-        BackgroundTransparency = 1,
-        LayoutOrder = order,
-        BorderSizePixel = 0,
-    })
-
-    new("TextLabel", container, {
-        Position = UDim2.new(0, 0, 0, 2),
-        Size = UDim2.new(1, -54, 0, 18),
-        BackgroundTransparency = 1,
-        Text = title,
-        TextColor3 = C.Text,
-        TextSize = 13,
-        Font = Enum.Font.GothamSemibold,
-        TextXAlignment = Enum.TextXAlignment.Left,
-    })
-
-    new("TextLabel", container, {
-        Position = UDim2.new(0, 0, 0, 20),
-        Size = UDim2.new(1, -54, 0, 14),
-        BackgroundTransparency = 1,
-        Text = desc,
-        TextColor3 = C.TextSub,
-        TextSize = 10,
-        Font = Enum.Font.Gotham,
-        TextXAlignment = Enum.TextXAlignment.Left,
-        TextTruncate = Enum.TextTruncate.AtEnd,
-    })
-
-    -- Toggle switch background
-    local switch = new("Frame", container, {
-        Position = UDim2.new(1, -48, 0.5, -11),
-        Size = UDim2.new(0, 40, 0, 22),
-        BackgroundColor3 = C.ToggleOff,
-        BorderSizePixel = 0,
-    })
-    new("UICorner", switch, { CornerRadius = UDim.new(0, 11) })
-
-    -- Toggle circle
-    local circle = new("Frame", switch, {
-        Size = UDim2.new(0, 18, 0, 18),
-        BackgroundColor3 = C.TextSub,
-        BorderSizePixel = 0,
-    })
-    new("UICorner", circle, { CornerRadius = UDim.new(0, 9) })
-
-    -- Hidden button for interaction
-    local btn = new("TextButton", switch, {
-        Size = UDim2.new(1, 0, 1, 0),
-        BackgroundTransparency = 1,
-        Text = "",
-        ZIndex = 5,
-        BorderSizePixel = 0,
-        AutoButtonColor = false,
-    })
-
-    local isOn = default
-
-    local function updateVisual()
-        local goalBg = isOn and C.ToggleOn or C.ToggleOff
-        local goalCircle = isOn and Color3.fromRGB(255, 255, 255) or C.TextSub
-        local goalPos = isOn and UDim2.new(1, -20, 0.5, -9) or UDim2.new(0, 2, 0.5, -9)
-        tw(switch, 0.2, { BackgroundColor3 = goalBg })
-        tw(circle, 0.2, { BackgroundColor3 = goalCircle, Position = goalPos })
-    end
-
-    updateVisual()
-
-    btn.MouseButton1Click:Connect(function()
-        isOn = not isOn
-        updateVisual()
-        callback(isOn)
-    end)
-
-    return container, {
-        setState = function(val)
-            isOn = val
-            updateVisual()
-            callback(val)
-        end,
-        getState = function() return isOn end,
-    }
-end
-
--- Button
-local function makeButton(parent, text, callback, order)
-    local btn = new("TextButton", parent, {
-        Size = UDim2.new(1, 0, 0, 38),
-        BackgroundColor3 = C.Accent,
-        TextColor3 = Color3.fromRGB(5, 5, 5),
-        TextSize = 13,
-        Font = Enum.Font.GothamSemibold,
-        Text = text,
-        AutoButtonColor = false,
-        BorderSizePixel = 0,
-        LayoutOrder = order,
-    })
-    new("UICorner", btn, { CornerRadius = UDim.new(0, 8) })
-
-    btn.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            tw(btn, 0.15, { BackgroundColor3 = C.AccentDark })
-        end
-    end)
-
-    btn.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            tw(btn, 0.15, { BackgroundColor3 = C.Accent })
-        end
-    end)
-
-    btn.MouseButton1Click:Connect(callback)
-
-    return btn
-end
-
--- Slider
-local function makeSlider(parent, title, min, max, default, callback, order)
-    local container = new("Frame", parent, {
-        Size = UDim2.new(1, 0, 0, 56),
-        BackgroundTransparency = 1,
-        LayoutOrder = order,
-        BorderSizePixel = 0,
-    })
-
-    -- Title label
-    new("TextLabel", container, {
-        Position = UDim2.new(0, 0, 0, 0),
-        Size = UDim2.new(1, -50, 0, 18),
-        BackgroundTransparency = 1,
-        Text = title,
-        TextColor3 = C.Text,
-        TextSize = 12,
-        Font = Enum.Font.GothamSemibold,
-        TextXAlignment = Enum.TextXAlignment.Left,
-    })
-
-    -- Value label
-    local valueLabel = new("TextLabel", container, {
-        Position = UDim2.new(1, -48, 0, 0),
-        Size = UDim2.new(0, 48, 0, 18),
-        BackgroundTransparency = 1,
-        Text = tostring(default),
-        TextColor3 = C.Accent,
-        TextSize = 12,
-        Font = Enum.Font.GothamBold,
-        TextXAlignment = Enum.TextXAlignment.Right,
-    })
-
-    -- Track
-    local track = new("Frame", container, {
-        Position = UDim2.new(0, 0, 0, 36),
-        Size = UDim2.new(1, 0, 0, 4),
-        BackgroundColor3 = C.SliderTrack,
-        BorderSizePixel = 0,
-    })
-    new("UICorner", track, { CornerRadius = UDim.new(0, 2) })
-
-    -- Fill
-    local fill = new("Frame", track, {
-        Size = UDim2.new((default - min) / (max - min), 0, 1, 0),
-        BackgroundColor3 = C.Accent,
-        BorderSizePixel = 0,
-    })
-    new("UICorner", fill, { CornerRadius = UDim.new(0, 2) })
-
-    -- Circle handle
-    local circle = new("Frame", container, {
-        Size = UDim2.new(0, 14, 0, 14),
-        BackgroundColor3 = C.Accent,
-        ZIndex = 3,
-        BorderSizePixel = 0,
-    })
-    new("UICorner", circle, { CornerRadius = UDim.new(0, 7) })
-
-    local dragging = false
-    local value = default
-
-    local function updateVisual()
-        local pct = (value - min) / (max - min)
-        fill.Size = UDim2.new(pct, 0, 1, 0)
-        circle.Position = UDim2.new(pct, -7, 0, 31)
-        valueLabel.Text = tostring(math.round(value))
-    end
-
-    -- Hidden button on circle for input capture
-    local inputBtn = new("TextButton", circle, {
-        Size = UDim2.new(1, 0, 1, 0),
-        BackgroundTransparency = 1,
-        Text = "",
-        ZIndex = 4,
-        BorderSizePixel = 0,
-        AutoButtonColor = false,
-    })
-
-    -- Hidden button on track for click-to-set
-    local trackBtn = new("TextButton", track, {
-        Size = UDim2.new(1, 0, 1, 0),
-        BackgroundTransparency = 1,
-        Text = "",
-        ZIndex = 2,
-        BorderSizePixel = 0,
-        AutoButtonColor = false,
-    })
-
-    local function calculateValue(mouseX)
-        local trackW = track.AbsoluteSize.X
-        if trackW <= 0 then return end
-        local relX = mouseX - track.AbsolutePosition.X
-        local pct = relX / trackW
-        pct = math.clamp(pct, 0, 1)
-        local newVal = min + pct * (max - min)
-        newVal = math.round(newVal)
-        if newVal ~= value then
-            value = newVal
-            updateVisual()
-            callback(value)
-        end
-    end
-
-    inputBtn.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            dragging = true
-        end
-    end)
-
-    trackBtn.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            dragging = true
-            calculateValue(input.Position.X)
-        end
-    end)
-
-    UIS.InputChanged:Connect(function(input)
-        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-            calculateValue(input.Position.X)
-        end
-    end)
-
-    UIS.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            if dragging then
-                dragging = false
-            end
-        end
-    end)
-
-    updateVisual()
-
-    return container
-end
-
--- Dropdown (FIXED: uses wrapper frame so options push content below instead of overlapping)
-local function makeDropdown(parent, title, options, default, callback, order)
-    -- Wrapper frame that expands when dropdown is open
-    local wrapper = new("Frame", parent, {
-        Size = UDim2.new(1, 0, 0, 0),
-        AutomaticSize = Enum.AutomaticSize.Y,
-        BackgroundTransparency = 1,
-        LayoutOrder = order,
-        BorderSizePixel = 0,
-    })
-    new("UIListLayout", wrapper, {
-        SortOrder = Enum.SortOrder.LayoutOrder,
-        Padding = UDim.new(0, 0),
-    })
-
-    local header = new("TextButton", wrapper, {
-        Size = UDim2.new(1, 0, 0, 38),
-        BackgroundColor3 = C.Card,
-        Text = "",
-        AutoButtonColor = false,
-        BorderSizePixel = 0,
-        LayoutOrder = 1,
-    })
-    new("UICorner", header, { CornerRadius = UDim.new(0, 8) })
-    new("UIStroke", header, { Color = C.Border, Thickness = 1 })
-
-    -- Selected text
-    local selectedLabel = new("TextLabel", header, {
-        Position = UDim2.new(0, 12, 0, 0),
-        Size = UDim2.new(1, -30, 1, 0),
-        BackgroundTransparency = 1,
-        Text = default,
-        TextColor3 = C.Text,
-        TextSize = 13,
-        Font = Enum.Font.Gotham,
-        TextXAlignment = Enum.TextXAlignment.Left,
-    })
-
-    -- Arrow
-    local arrow = new("TextLabel", header, {
-        Position = UDim2.new(1, -24, 0, 0),
-        Size = UDim2.new(0, 24, 1, 0),
-        BackgroundTransparency = 1,
-        Text = "\u{25BC}",
-        TextColor3 = C.TextSub,
-        TextSize = 12,
-        Font = Enum.Font.Gotham,
-    })
-
-    -- Options container (flows inside wrapper, pushes content below)
-    local optionsFrame = new("Frame", wrapper, {
-        Size = UDim2.new(1, 0, 0, #options * 32),
-        BackgroundColor3 = C.Card,
-        Visible = false,
-        BorderSizePixel = 0,
-        ClipsDescendants = true,
-        LayoutOrder = 2,
-    })
-    new("UICorner", optionsFrame, { CornerRadius = UDim.new(0, 8) })
-    new("UIStroke", optionsFrame, { Color = C.Border, Thickness = 1 })
-
-    local isOpen = false
-
-    local function close()
-        isOpen = false
-        optionsFrame.Visible = false
-        arrow.Text = "\u{25BC}"
-    end
-
-    for i, opt in ipairs(options) do
-        local optBtn = new("TextButton", optionsFrame, {
-            Position = UDim2.new(0, 4, 0, (i - 1) * 32 + 1),
-            Size = UDim2.new(1, -8, 0, 30),
-            BackgroundColor3 = C.Card,
-            Text = opt,
-            TextColor3 = C.Text,
-            TextSize = 12,
-            Font = Enum.Font.Gotham,
-            TextXAlignment = Enum.TextXAlignment.Left,
-            BorderSizePixel = 0,
-            AutoButtonColor = false,
-        })
-
-        optBtn.InputBegan:Connect(function(input)
-            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-                optBtn.BackgroundColor3 = C.CardHover
-            end
-        end)
-
-        optBtn.InputEnded:Connect(function(input)
-            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-                optBtn.BackgroundColor3 = C.Card
-            end
-        end)
-
-        optBtn.MouseButton1Click:Connect(function()
-            selectedLabel.Text = opt
-            callback(opt)
-            close()
-            local idx = table.find(openDropdowns, close)
-            if idx then table.remove(openDropdowns, idx) end
-        end)
-    end
-
-    header.MouseButton1Click:Connect(function()
-        local wasOpen = isOpen
-
-        -- Close all other open dropdowns
-        local toClose = { table.unpack(openDropdowns) }
-        for _, fn in ipairs(toClose) do
-            fn()
-        end
-        openDropdowns = {}
-
-        -- Toggle this dropdown
-        if not wasOpen then
-            isOpen = true
-            optionsFrame.Visible = true
-            arrow.Text = "\u{25B2}"
-            table.insert(openDropdowns, close)
-        end
-    end)
-
-    return wrapper
-end
-
--- ========== ESP SYSTEM ==========
-local function createESPForPlayer(targetPlayer)
-    if targetPlayer == player then return end
-    if espObjects[targetPlayer] then return end
-
-    local function setupESP()
-        if not targetPlayer.Character then return end
-        local hrp = targetPlayer.Character:FindFirstChild("HumanoidRootPart")
-        if not hrp then return end
-
-        -- Remove old ESP objects if any
-        if espObjects[targetPlayer] then
-            if espObjects[targetPlayer].highlight and espObjects[targetPlayer].highlight.Parent then
-                espObjects[targetPlayer].highlight:Destroy()
-            end
-            if espObjects[targetPlayer].billboard and espObjects[targetPlayer].billboard.Parent then
-                espObjects[targetPlayer].billboard:Destroy()
-            end
-        end
-
-        -- Highlight (box ESP)
-        local highlight = new("Highlight", targetPlayer.Character, {
-            Name = "SheitsaESP",
-            FillTransparency = 0.8,
-            OutlineColor = Color3.fromRGB(255, 50, 50),
-            FillColor = Color3.fromRGB(255, 50, 50),
-            OutlineTransparency = 0,
-        })
-
-        -- Billboard for name + distance
-        local billboard = new("BillboardGui", hrp, {
-            Name = "SheitsaESP_Info",
-            Size = UDim2.new(0, 200, 0, 50),
-            StudsOffset = Vector3.new(0, 4, 0),
-            AlwaysOnTop = true,
-        })
-
-        local nameLabel = new("TextLabel", billboard, {
-            Size = UDim2.new(1, 0, 0.5, 0),
-            BackgroundTransparency = 1,
-            TextColor3 = Color3.fromRGB(255, 255, 255),
-            TextStrokeTransparency = 0.3,
-            TextStrokeColor3 = Color3.fromRGB(0, 0, 0),
-            TextSize = 13,
-            Font = Enum.Font.GothamBold,
-            Text = targetPlayer.DisplayName,
-        })
-
-        local infoLabel = new("TextLabel", billboard, {
-            Size = UDim2.new(1, 0, 0.5, 0),
-            Position = UDim2.new(0, 0, 0.5, 0),
-            BackgroundTransparency = 1,
-            TextColor3 = Color3.fromRGB(200, 200, 200),
-            TextStrokeTransparency = 0.3,
-            TextStrokeColor3 = Color3.fromRGB(0, 0, 0),
-            TextSize = 11,
-            Font = Enum.Font.Gotham,
-            Text = targetPlayer.Name .. " | --m",
-        })
-
-        espObjects[targetPlayer] = {
-            highlight = highlight,
-            billboard = billboard,
-            nameLabel = nameLabel,
-            infoLabel = infoLabel,
+Tabs.Blocks:AddButton({
+    Title       = "Spawn Block",
+    Description = "Spawns the selected block type",
+    Callback    = function()
+        local map = {
+            ["Lucky Block"] = Blocks.Lucky,
+            ["Super Block"] = Blocks.Super,
+            ["Diamond Block"] = Blocks.Diamond,
         }
+        local remote = map[selectedBlock]
+        if remote then remote:FireServer() end
     end
+})
 
-    -- Setup if character exists
-    if targetPlayer.Character then
-        setupESP()
+Tabs.Blocks:AddSlider({
+    Title       = "Spawn Amount",
+    Description = "How many blocks to spawn (1-50)",
+    Min         = 1,
+    Max         = 50,
+    Default     = 5,
+    Callback    = function(Value)
+        spawnAmount = Value
     end
+})
 
-    -- Listen for new characters
-    espCharConns[targetPlayer] = targetPlayer.CharacterAdded:Connect(function(c)
-        task.wait(1)
-        setupESP()
-    end)
-end
-
-local function removeESPForPlayer(targetPlayer)
-    local obj = espObjects[targetPlayer]
-    if obj then
-        if obj.highlight and obj.highlight.Parent then obj.highlight:Destroy() end
-        if obj.billboard and obj.billboard.Parent then obj.billboard:Destroy() end
-        espObjects[targetPlayer] = nil
-    end
-    if espCharConns[targetPlayer] then
-        espCharConns[targetPlayer]:Disconnect()
-        espCharConns[targetPlayer] = nil
-    end
-end
-
-local function clearAllESP()
-    for p, _ in pairs(espObjects) do
-        removeESPForPlayer(p)
-    end
-    espObjects = {}
-    espCharConns = {}
-end
-
-local function enableESP()
-    espEnabled = true
-    -- Add ESP to all current players
-    for _, p in ipairs(Players:GetPlayers()) do
-        createESPForPlayer(p)
-    end
-    -- Listen for new players
-    if espUpdateConn then espUpdateConn:Disconnect() end
-    espUpdateConn = RunService.RenderStepped:Connect(function()
-        if not espEnabled then return end
-        local myChar = player.Character
-        local myHrp = myChar and myChar:FindFirstChild("HumanoidRootPart")
-        if not myHrp then return end
-        for p, obj in pairs(espObjects) do
-            if p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
-                local dist = math.floor((p.Character.HumanoidRootPart.Position - myHrp.Position).Magnitude)
-                obj.infoLabel.Text = p.Name .. " | " .. dist .. "m"
+Tabs.Blocks:AddButton({
+    Title       = "Spawn Multiple",
+    Description = "Spawns the selected amount of blocks",
+    Callback    = function()
+        local map = {
+            ["Lucky Block"] = Blocks.Lucky,
+            ["Super Block"] = Blocks.Super,
+            ["Diamond Block"] = Blocks.Diamond,
+        }
+        local remote = map[selectedBlock]
+        if remote then
+            local amount = math.clamp(spawnAmount, 1, 50)
+            for i = 1, amount do
+                remote:FireServer()
+                if i < amount then task.wait(0.1) end
             end
         end
-    end)
-end
-
-local function disableESP()
-    espEnabled = false
-    clearAllESP()
-    if espUpdateConn then espUpdateConn:Disconnect(); espUpdateConn = nil end
-end
-
--- Listen for new players joining while ESP is on
-Players.PlayerAdded:Connect(function(p)
-    if espEnabled then
-        createESPForPlayer(p)
     end
-end)
+})
 
-Players.PlayerRemoving:Connect(function(p)
-    removeESPForPlayer(p)
-end)
+Tabs.Blocks:AddSection("VERY OP (Gamepass Blocks)")
 
--- ========== KILL AURA SYSTEM ==========
-local function startKillAura()
-    if killAuraConn then killAuraConn:Disconnect() end
-    savedHitboxSizes = {}
+Tabs.Blocks:AddDropdown({
+    Title       = "Gamepass Block",
+    Description = "Select gamepass block",
+    Values      = {"Rainbow Lucky Block", "Galaxy Lucky Block"},
+    Default     = "Rainbow Lucky Block",
+    Callback    = function(Value)
+        selectedGPBlock = Value
+    end
+})
 
-    killAuraConn = RunService.Heartbeat:Connect(function()
-        if not killAuraEnabled or not player.Character then return end
-        local char = player.Character
-        local hrp = char:FindFirstChild("HumanoidRootPart")
-        if not hrp then return end
+Tabs.Blocks:AddButton({
+    Title       = "Spawn Gamepass Block",
+    Description = "Spawns the selected gamepass block",
+    Callback    = function()
+        local map = {
+            ["Rainbow Lucky Block"] = Blocks.Rainbow,
+            ["Galaxy Lucky Block"] = Blocks.Galaxy,
+        }
+        local remote = map[selectedGPBlock]
+        if remote then remote:FireServer() end
+    end
+})
 
-        -- Restore sizes for parts that are no longer in an equipped tool
-        for part, origSize in pairs(savedHitboxSizes) do
-            if not part.Parent or not part:IsDescendantOf(char) then
-                if part.Parent then
-                    part.Size = origSize
-                end
-                savedHitboxSizes[part] = nil
+Tabs.Blocks:AddSlider({
+    Title       = "GP Spawn Amount",
+    Description = "How many GP blocks (1-50)",
+    Min         = 1,
+    Max         = 50,
+    Default     = 3,
+    Callback    = function(Value)
+        gpSpawnAmount = Value
+    end
+})
+
+Tabs.Blocks:AddButton({
+    Title       = "Spawn Multiple (GP)",
+    Description = "Spawns the selected amount of GP blocks",
+    Callback    = function()
+        local map = {
+            ["Rainbow Lucky Block"] = Blocks.Rainbow,
+            ["Galaxy Lucky Block"] = Blocks.Galaxy,
+        }
+        local remote = map[selectedGPBlock]
+        if remote then
+            local amount = math.clamp(gpSpawnAmount, 1, 50)
+            for i = 1, amount do
+                remote:FireServer()
+                if i < amount then task.wait(0.1) end
             end
         end
+    end
+})
 
-        -- Find equipped tool
-        local equippedTool = nil
-        for _, child in ipairs(char:GetChildren()) do
-            if child:IsA("Tool") then
-                equippedTool = child
-                break
-            end
+-- ==========================================
+--  UNIVERSAL TAB
+-- ==========================================
+Tabs.Universal:AddSection("Movement")
+
+Tabs.Universal:AddSlider({
+    Title       = "WalkSpeed",
+    Description = "Sets walk speed (persists on respawn)",
+    Min         = 10,
+    Max         = 200,
+    Default     = 16,
+    Callback    = function(Value)
+        stateWalkSpeed = Value
+        if player.Character and player.Character:FindFirstChild("Humanoid") then
+            player.Character.Humanoid.WalkSpeed = Value
         end
+    end
+})
 
-        if not equippedTool then
-            -- No tool equipped - restore all saved hitboxes
-            for part, origSize in pairs(savedHitboxSizes) do
-                if part.Parent then part.Size = origSize end
-            end
-            savedHitboxSizes = {}
-            return
+Tabs.Universal:AddSlider({
+    Title       = "JumpPower",
+    Description = "Sets jump power (persists on respawn)",
+    Min         = 10,
+    Max         = 500,
+    Default     = 50,
+    Callback    = function(Value)
+        stateJumpPower = Value
+        if player.Character and player.Character:FindFirstChild("Humanoid") then
+            player.Character.Humanoid.JumpPower = Value
         end
+    end
+})
 
-        -- Strategy 1: Look for parts with "hitbox" or "hit" in name
-        local foundHitbox = false
-        for _, part in ipairs(equippedTool:GetDescendants()) do
-            if part:IsA("BasePart") then
-                local nameLower = part.Name:lower()
-                if nameLower:find("hitbox") or nameLower:find("hit_box") or nameLower:find("hit") then
-                    if not savedHitboxSizes[part] then
-                        savedHitboxSizes[part] = part.Size
-                    end
-                    part.Size = Vector3.new(25, 25, 25)
-                    foundHitbox = true
-                end
-            end
-        end
+Tabs.Universal:AddSection("Physics")
 
-        if not foundHitbox then
-            -- Strategy 2: Find small/invisible parts (likely hitboxes)
-            for _, part in ipairs(equippedTool:GetDescendants()) do
-                if part:IsA("BasePart") and part ~= hrp then
-                    local isVisual = false
-                    -- MeshParts with meshes are usually visual
-                    if part:IsA("MeshPart") and part.MeshId ~= "" then
-                        isVisual = true
-                    end
-                    -- Parts with SpecialMesh children are visual
-                    if part:FindFirstChildOfClass("SpecialMesh") then
-                        isVisual = true
-                    end
-
-                    if not isVisual then
-                        if not savedHitboxSizes[part] then
-                            savedHitboxSizes[part] = part.Size
-                        end
-                        part.Size = Vector3.new(25, 25, 25)
-                        foundHitbox = true
+Tabs.Universal:AddToggle({
+    Title       = "NoClip",
+    Description = "Walk through walls (persists on respawn)",
+    Default     = false,
+    Callback    = function(Value)
+        stateNoClip = Value
+        if Value then
+            noclipConn = RunService.Stepped:Connect(function()
+                if player.Character then
+                    for _, p in ipairs(player.Character:GetDescendants()) do
+                        if p:IsA("BasePart") then p.CanCollide = false end
                     end
                 end
-            end
-        end
-
-        if not foundHitbox then
-            -- Strategy 3: Enlarge ALL parts in the tool
-            for _, part in ipairs(equippedTool:GetDescendants()) do
-                if part:IsA("BasePart") then
-                    if not savedHitboxSizes[part] then
-                        savedHitboxSizes[part] = part.Size
-                    end
-                    part.Size = Vector3.new(25, 25, 25)
-                end
-            end
-        end
-    end)
-end
-
-local function stopKillAura()
-    if killAuraConn then killAuraConn:Disconnect(); killAuraConn = nil end
-    for part, origSize in pairs(savedHitboxSizes) do
-        if part.Parent then part.Size = origSize end
-    end
-    savedHitboxSizes = {}
-end
-
--- ========== POPULATE TAB 1: LUCKY BLOCKS ==========
-local page1 = tabPages["Blocks"]
-
-makeSectionHeader(page1, "Spawn Blocks", 1)
-
-makeDropdown(page1, "Block Type", {"Lucky Block", "Super Block", "Diamond Block"}, "Lucky Block", function(sel)
-    selectedBlock = sel
-end, 2)
-
-makeButton(page1, "Spawn Block", function()
-    local map = {
-        ["Lucky Block"] = Blocks.Lucky,
-        ["Super Block"] = Blocks.Super,
-        ["Diamond Block"] = Blocks.Diamond,
-    }
-    local remote = map[selectedBlock]
-    if remote then remote:FireServer() end
-end, 3)
-
-makeSlider(page1, "Spawn Amount", 1, 50, 5, function(val)
-    spawnAmount = val
-end, 4)
-
-makeButton(page1, "Spawn Multiple", function()
-    local map = {
-        ["Lucky Block"] = Blocks.Lucky,
-        ["Super Block"] = Blocks.Super,
-        ["Diamond Block"] = Blocks.Diamond,
-    }
-    local remote = map[selectedBlock]
-    if remote then
-        local amount = math.clamp(spawnAmount, 1, 50)
-        for i = 1, amount do
-            remote:FireServer()
-            if i < amount then task.wait(0.1) end
-        end
-    end
-end, 5)
-
-makeSectionHeader(page1, "VERY OP (Gamepass Blocks)", 6)
-
-makeDropdown(page1, "Gamepass Block", {"Rainbow Lucky Block", "Galaxy Lucky Block"}, "Rainbow Lucky Block", function(sel)
-    selectedGPBlock = sel
-end, 7)
-
-makeButton(page1, "Spawn Gamepass Block", function()
-    local map = {
-        ["Rainbow Lucky Block"] = Blocks.Rainbow,
-        ["Galaxy Lucky Block"] = Blocks.Galaxy,
-    }
-    local remote = map[selectedGPBlock]
-    if remote then remote:FireServer() end
-end, 8)
-
-makeSlider(page1, "GP Spawn Amount", 1, 50, 3, function(val)
-    gpSpawnAmount = val
-end, 9)
-
-makeButton(page1, "Spawn Multiple (GP)", function()
-    local map = {
-        ["Rainbow Lucky Block"] = Blocks.Rainbow,
-        ["Galaxy Lucky Block"] = Blocks.Galaxy,
-    }
-    local remote = map[selectedGPBlock]
-    if remote then
-        local amount = math.clamp(gpSpawnAmount, 1, 50)
-        for i = 1, amount do
-            remote:FireServer()
-            if i < amount then task.wait(0.1) end
-        end
-    end
-end, 10)
-
-makeSectionHeader(page1, "Auto Spawn on Respawn", 11)
-
-makeDropdown(page1, "Block Type (Auto)", {"Lucky Block", "Super Block", "Diamond Block", "Rainbow Lucky Block", "Galaxy Lucky Block"}, "Lucky Block", function(sel)
-    autoSpawnBlock = sel
-end, 12)
-
-makeSlider(page1, "Auto Spawn Amount", 1, 50, 1, function(val)
-    autoSpawnAmount = val
-end, 13)
-
-makeToggle(page1, "Auto Spawn on Respawn", "Auto-spawn selected blocks when you respawn/die", false, function(state)
-    autoSpawnEnabled = state
-end, 14)
-
-makeSectionHeader(page1, "Revenge Kill", 15)
-
-killerLabel = makeLabel(page1, "Last killer: None", 16)
-
-local _, revengeCtrl = makeToggle(page1, "Revenge Kill", "On respawn: get weapons, TP to killer, fling them, TP back (one-time)", false, function(state)
-    revengeKillEnabled = state
-end, 17)
-revengeToggleCtrl = revengeCtrl
-
--- ========== POPULATE TAB 2: UNIVERSAL ==========
-local page2 = tabPages["Universal"]
-
-makeSectionHeader(page2, "Movement", 1)
-
-makeSlider(page2, "WalkSpeed", 10, 200, 16, function(val)
-    stateWalkSpeed = val
-    if player.Character and player.Character:FindFirstChild("Humanoid") then
-        player.Character.Humanoid.WalkSpeed = val
-    end
-end, 2)
-
-makeSlider(page2, "JumpPower", 10, 500, 50, function(val)
-    stateJumpPower = val
-    if player.Character and player.Character:FindFirstChild("Humanoid") then
-        player.Character.Humanoid.JumpPower = val
-    end
-end, 3)
-
-makeSectionHeader(page2, "Physics", 4)
-
-makeToggle(page2, "NoClip", "Walk through walls", false, function(state)
-    stateNoClip = state
-    if state then
-        noclipConn = RunService.Stepped:Connect(function()
+            end)
+        else
+            if noclipConn then noclipConn:Disconnect(); noclipConn = nil end
             if player.Character then
                 for _, p in ipairs(player.Character:GetDescendants()) do
-                    if p:IsA("BasePart") then p.CanCollide = false end
-                end
-            end
-        end)
-    else
-        if noclipConn then noclipConn:Disconnect(); noclipConn = nil end
-        if player.Character then
-            for _, p in ipairs(player.Character:GetDescendants()) do
-                if p:IsA("BasePart") then p.CanCollide = true end
-            end
-        end
-    end
-end, 5)
-
-makeSectionHeader(page2, "Combat", 6)
-
-makeToggle(page2, "ESP", "See all players through walls (highlight + name + distance)", false, function(state)
-    if state then
-        enableESP()
-    else
-        disableESP()
-    end
-end, 7)
-
-makeToggle(page2, "Kill Aura", "Extends weapon hitbox when a tool is equipped", false, function(state)
-    killAuraEnabled = state
-    if state then
-        startKillAura()
-    else
-        stopKillAura()
-    end
-end, 8)
-
-makeSectionHeader(page2, "Tools", 9)
-
-makeButton(page2, "Infinite Yield", function()
-    loadstring(game:HttpGet("https://raw.githubusercontent.com/EdgeIY/infiniteyield/master/source", true))()
-end, 10)
-
--- ========== POPULATE TAB 3: CREDITS ==========
-local page3 = tabPages["Credits"]
-
-makeSectionHeader(page3, "Info", 1)
-makeLabel(page3, "LUCKY BLOCK Battlegrounds", 2)
-makeLabel(page3, "Sheitsa Hub V2", 3)
-makeLabel(page3, "Script made by the Sheitsa Dev Team.", 4)
-makeLabel(page3, "All credits go to Sheitsa Dev Team for creating this script.", 5)
-
-makeSectionHeader(page3, "Social", 6)
-makeButton(page3, "Join our Discord", function()
-    pcall(setclipboard, DiscordLink)
-end, 7)
-
--- ========== SET DEFAULT TAB ==========
-switchTab("Blocks")
-
--- ========== DEATH TRACKING ==========
-local function setupDeathTracking()
-    local char = player.Character
-    if not char then return end
-    local humanoid = char:FindFirstChild("Humanoid")
-    if not humanoid then return end
-
-    humanoid.Died:Connect(function()
-        local hrp = char:FindFirstChild("HumanoidRootPart")
-        if hrp then
-            local myPos = hrp.Position
-            local closest = nil
-            local closestDist = math.huge
-            for _, p in ipairs(Players:GetPlayers()) do
-                if p ~= player and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
-                    local dist = (p.Character.HumanoidRootPart.Position - myPos).Magnitude
-                    if dist < closestDist and dist < 150 then
-                        closestDist = dist
-                        closest = p
-                    end
-                end
-            end
-            if closest then
-                lastKiller = closest
-                lastKillerName = closest.Name
-                if killerLabel then
-                    killerLabel.Text = "Last killer: " .. lastKillerName
+                    if p:IsA("BasePart") then p.CanCollide = true end
                 end
             end
         end
-    end)
-end
+    end
+})
 
--- Initial death tracking
-if player.Character then
-    setupDeathTracking()
-end
+Tabs.Universal:AddSection("Tools")
 
--- ========== RESPAWN PERSISTENCE ==========
+Tabs.Universal:AddButton({
+    Title       = "Infinite Yield",
+    Description = "Loads Infinite Yield admin hub",
+    Callback    = function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/EdgeIY/infiniteyield/master/source", true))()
+    end
+})
+
+-- ==========================================
+--  CREDITS TAB
+-- ==========================================
+Tabs.Credits:AddParagraph({
+    Title   = "LUCKY BLOCK Battlegrounds",
+    Content = "Sheitsa Hub V2\nScript made by the Sheitsa Dev Team.\nAll credits go to Sheitsa Dev Team for creating this script.",
+})
+
+Tabs.Credits:AddParagraph({
+    Title   = "UI Library",
+    Content = "Fluent-Modded by StyearX on YouTube\nhttps://github.com/StyearX/Fluent-Modded",
+})
+
+Tabs.Credits:AddSection("Social")
+
+Tabs.Credits:AddButton({
+    Title       = "Join our Discord",
+    Description = "Copies the Discord invite link",
+    Callback    = function()
+        pcall(setclipboard, DiscordLink)
+        Fluent:Notify({ Title = "LBB", Content = "Discord link copied!", Duration = 3 })
+    end
+})
+
+-- ==========================================
+--  RESPAWN PERSISTENCE
+-- ==========================================
 player.CharacterAdded:Connect(function(char)
     local humanoid = char:WaitForChild("Humanoid")
     humanoid.WalkSpeed = stateWalkSpeed
     humanoid.JumpPower = stateJumpPower
-
-    -- Set up death tracking for new character
-    setupDeathTracking()
-
-    task.wait(2)
-
-    -- Auto spawn blocks on respawn
-    if autoSpawnEnabled then
-        local blockMap = {
-            ["Lucky Block"] = Blocks.Lucky,
-            ["Super Block"] = Blocks.Super,
-            ["Diamond Block"] = Blocks.Diamond,
-            ["Rainbow Lucky Block"] = Blocks.Rainbow,
-            ["Galaxy Lucky Block"] = Blocks.Galaxy,
-        }
-        local remote = blockMap[autoSpawnBlock]
-        if remote then
-            for i = 1, math.clamp(autoSpawnAmount, 1, 50) do
-                remote:FireServer()
-                if i < autoSpawnAmount then task.wait(0.1) end
-            end
-        end
-    end
-
-    -- Revenge Kill (UPGRADED: wait for weapons, fling killer, TP back)
-    if revengeKillEnabled and lastKiller and lastKiller.Character and lastKiller.Character:FindFirstChild("HumanoidRootPart") then
-        local myHrp = char:FindFirstChild("HumanoidRootPart")
-        if myHrp then
-            -- Spawn 5 Galaxy Blocks
-            for i = 1, 5 do
-                Blocks.Galaxy:FireServer()
-                if i < 5 then task.wait(0.1) end
-            end
-
-            -- Wait for player to get a weapon (up to 15 seconds)
-            local hasWeapon = false
-            local waitStart = tick()
-            repeat
-                for _, child in ipairs(char:GetChildren()) do
-                    if child:IsA("Tool") then
-                        hasWeapon = true
-                        break
-                    end
-                end
-                if not hasWeapon then task.wait(0.3) end
-            until hasWeapon or (tick() - waitStart) > 15
-
-            -- Save original CFrame
-            local originalCFrame = myHrp.CFrame
-
-            -- TP to killer
-            local killerHrp = lastKiller.Character:FindFirstChild("HumanoidRootPart")
-            if killerHrp then
-                myHrp.CFrame = killerHrp.CFrame + killerHrp.CFrame.LookVector * 3
-                task.wait(0.5)
-
-                -- Fling the killer (apply massive upward + random velocity)
-                pcall(function()
-                    killerHrp.AssemblyLinearVelocity = Vector3.new(
-                        math.random(-5000, 5000),
-                        10000,
-                        math.random(-5000, 5000)
-                    )
-                end)
-
-                task.wait(1)
-
-                -- TP back to original position
-                myHrp.CFrame = originalCFrame
-            end
-
-            -- Auto-untoggle (one-time use)
-            revengeKillEnabled = false
-            if revengeToggleCtrl then
-                revengeToggleCtrl.setState(false)
-            end
-        end
-    end
-
-    -- NoClip persistence
+    task.wait(1)
     if stateNoClip then
         if noclipConn then noclipConn:Disconnect() end
         noclipConn = RunService.Stepped:Connect(function()
@@ -1273,64 +279,13 @@ player.CharacterAdded:Connect(function(char)
     end
 end)
 
--- ========== DRAGGABLE TOGGLE BUTTON ==========
-local toggleGui = new("ScreenGui", CoreGui, {
-    Name = "LBB_Toggle",
-    ResetOnSpawn = false,
-    ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+-- ==========================================
+--  STARTUP NOTIFICATION
+-- ==========================================
+Fluent:Notify({
+    Title   = "LBB | Sheitsa Hub V2",
+    Content = "Script loaded! Press RightControl to minimize.",
+    Duration = 4
 })
 
-local toggleBtn = new("TextButton", toggleGui, {
-    Name = "ToggleBtn",
-    Size = UDim2.new(0, 44, 0, 44),
-    Position = UDim2.new(0.5, -22, 0, 14),
-    BackgroundColor3 = Color3.fromRGB(12, 12, 16),
-    Text = "LB",
-    TextColor3 = Color3.fromRGB(200, 200, 210),
-    TextSize = 13,
-    Font = Enum.Font.GothamBold,
-    BorderSizePixel = 0,
-    AutoButtonColor = false,
-})
-new("UICorner", toggleBtn, { CornerRadius = UDim.new(0, 11) })
-new("UIStroke", toggleBtn, { Color = Color3.fromRGB(190, 190, 200), Thickness = 1.5 })
-
--- Toggle button drag logic with 5px threshold
-local tbDragging = false
-local tbDragStart = Vector3.zero
-local tbStartPos = UDim2.new()
-local tbDidDrag = false
-
-toggleBtn.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        tbDragging = true
-        tbDidDrag = false
-        tbDragStart = input.Position
-        tbStartPos = toggleBtn.Position
-    end
-end)
-
-toggleBtn.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        if not tbDidDrag then
-            screenGui.Enabled = not screenGui.Enabled
-        end
-        tbDragging = false
-    end
-end)
-
-UIS.InputChanged:Connect(function(input)
-    if tbDragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-        local delta = input.Position - tbDragStart
-        if math.abs(delta.X) > 5 or math.abs(delta.Y) > 5 then
-            tbDidDrag = true
-        end
-        toggleBtn.Position = UDim2.new(
-            tbStartPos.X.Scale, tbStartPos.X.Offset + delta.X,
-            tbStartPos.Y.Scale, tbStartPos.Y.Offset + delta.Y
-        )
-    end
-end)
-
--- ========== DONE ==========
-warn("[LBB Sheitsa Hub V2] >> Loaded with Custom AMOLED UI!")
+warn("[LBB Sheitsa Hub V2] >> Loaded with Fluent-Modded UI!")
