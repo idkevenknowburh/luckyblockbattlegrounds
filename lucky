@@ -1,11 +1,10 @@
 -- ============================================
 -- LUCKY BLOCK Battlegrounds - Sheitsa Hub V2
--- UI: Fluent by dawid-scripts
+-- UI: Rayfield by Sirius
 -- ============================================
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
-local UIS = game:GetService("UserInputService")
 local CoreGui = game:GetService("CoreGui")
 local RS = game:GetService("ReplicatedStorage")
 local player = Players.LocalPlayer
@@ -30,55 +29,42 @@ local selectedGPBlock = "Rainbow Lucky Block"
 local spawnAmount = 5
 local gpSpawnAmount = 3
 
--- ========== FLUENT UI (regular) ==========
-local guisBefore = {}
-for _, c in ipairs(CoreGui:GetChildren()) do guisBefore[c] = true end
+-- ========== RAYFIELD UI ==========
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
-local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
-
-local fluentGui = nil
-for _, c in ipairs(CoreGui:GetChildren()) do
-    if not guisBefore[c] and c:IsA("ScreenGui") then
-        fluentGui = c
-        break
-    end
-end
-
-local Window = Fluent:CreateWindow({
-    Title       = "LBB | Sheitsa Hub V2",
-    SubTitle    = "by Sheitsa",
-    TabWidth    = 120,
-    Size        = UDim2.fromOffset(550, 420),
-    Acrylic     = true,
-    Theme       = "Amoled",
-    MinimizeKey = Enum.KeyCode.RightControl,
+local Window = Rayfield:CreateWindow({
+    Name = "LBB | Sheitsa Hub V2",
+    Icon = 0,
+    LoadingTitle = "LBB | Sheitsa Hub V2",
+    LoadingSubtitle = "by Sheitsa",
+    Theme = "AmberGlow",
+    ToggleUIKeybind = Enum.KeyCode.RightControl,
+    ConfigurationSaving = {Enabled = false},
+    DisableRayfieldPrompts = true,
 })
-
-local Tabs = {
-    Blocks    = Window:AddTab({ Title = "Blocks",    Icon = "box" }),
-    Universal = Window:AddTab({ Title = "Universal", Icon = "user" }),
-    Credits   = Window:AddTab({ Title = "Credits",   Icon = "heart" }),
-}
 
 -- ==========================================
 --  BLOCKS TAB
 -- ==========================================
-Tabs.Blocks:AddSection("Spawn Blocks")
-
-Tabs.Blocks:AddDropdown({
-    Title       = "Block Type",
-    Description = "Select which block to spawn",
-    Values      = {"Lucky Block", "Super Block", "Diamond Block"},
-    Default     = 1,
-    Callback    = function(Value)
-        selectedBlock = Value
-    end
+local BlocksTab = Window:CreateTab({
+    Name = "Blocks",
+    Icon = "box",
 })
 
-Tabs.Blocks:AddButton({
-    Title       = "Spawn Block",
-    Description = "Spawns the selected block type",
-    Callback    = function()
+BlocksTab:CreateSection({Name = "Spawn Blocks"})
+
+BlocksTab:CreateDropdown({
+    Name = "Block Type",
+    Options = {"Lucky Block", "Super Block", "Diamond Block"},
+    Default = "Lucky Block",
+    Callback = function(Value)
+        selectedBlock = Value
+    end,
+})
+
+BlocksTab:CreateButton({
+    Name = "Spawn Block",
+    Callback = function()
         local map = {
             ["Lucky Block"] = Blocks.Lucky,
             ["Super Block"] = Blocks.Super,
@@ -86,24 +72,23 @@ Tabs.Blocks:AddButton({
         }
         local remote = map[selectedBlock]
         if remote then remote:FireServer() end
-    end
+    end,
 })
 
-Tabs.Blocks:AddSlider({
-    Title       = "Spawn Amount",
-    Description = "How many blocks to spawn (1-50)",
-    Min         = 1,
-    Max         = 50,
-    Value       = 5,
-    Callback    = function(Value)
+BlocksTab:CreateSlider({
+    Name = "Spawn Amount",
+    Min = 1,
+    Max = 50,
+    Default = 5,
+    Increment = 1,
+    Callback = function(Value)
         spawnAmount = Value
-    end
+    end,
 })
 
-Tabs.Blocks:AddButton({
-    Title       = "Spawn Multiple",
-    Description = "Spawns the selected amount of blocks",
-    Callback    = function()
+BlocksTab:CreateButton({
+    Name = "Spawn Multiple",
+    Callback = function()
         local map = {
             ["Lucky Block"] = Blocks.Lucky,
             ["Super Block"] = Blocks.Super,
@@ -117,49 +102,46 @@ Tabs.Blocks:AddButton({
                 if i < amount then task.wait(0.1) end
             end
         end
-    end
+    end,
 })
 
-Tabs.Blocks:AddSection("VERY OP (Gamepass Blocks)")
+BlocksTab:CreateSection({Name = "VERY OP (Gamepass Blocks)"})
 
-Tabs.Blocks:AddDropdown({
-    Title       = "Gamepass Block",
-    Description = "Select gamepass block",
-    Values      = {"Rainbow Lucky Block", "Galaxy Lucky Block"},
-    Default     = 1,
-    Callback    = function(Value)
+BlocksTab:CreateDropdown({
+    Name = "Gamepass Block",
+    Options = {"Rainbow Lucky Block", "Galaxy Lucky Block"},
+    Default = "Rainbow Lucky Block",
+    Callback = function(Value)
         selectedGPBlock = Value
-    end
+    end,
 })
 
-Tabs.Blocks:AddButton({
-    Title       = "Spawn Gamepass Block",
-    Description = "Spawns the selected gamepass block",
-    Callback    = function()
+BlocksTab:CreateButton({
+    Name = "Spawn Gamepass Block",
+    Callback = function()
         local map = {
             ["Rainbow Lucky Block"] = Blocks.Rainbow,
             ["Galaxy Lucky Block"] = Blocks.Galaxy,
         }
         local remote = map[selectedGPBlock]
         if remote then remote:FireServer() end
-    end
+    end,
 })
 
-Tabs.Blocks:AddSlider({
-    Title       = "GP Spawn Amount",
-    Description = "How many GP blocks (1-50)",
-    Min         = 1,
-    Max         = 50,
-    Value       = 3,
-    Callback    = function(Value)
+BlocksTab:CreateSlider({
+    Name = "GP Spawn Amount",
+    Min = 1,
+    Max = 50,
+    Default = 3,
+    Increment = 1,
+    Callback = function(Value)
         gpSpawnAmount = Value
-    end
+    end,
 })
 
-Tabs.Blocks:AddButton({
-    Title       = "Spawn Multiple (GP)",
-    Description = "Spawns the selected amount of GP blocks",
-    Callback    = function()
+BlocksTab:CreateButton({
+    Name = "Spawn Multiple (GP)",
+    Callback = function()
         local map = {
             ["Rainbow Lucky Block"] = Blocks.Rainbow,
             ["Galaxy Lucky Block"] = Blocks.Galaxy,
@@ -172,49 +154,53 @@ Tabs.Blocks:AddButton({
                 if i < amount then task.wait(0.1) end
             end
         end
-    end
+    end,
 })
 
 -- ==========================================
 --  UNIVERSAL TAB
 -- ==========================================
-Tabs.Universal:AddSection("Movement")
+local UniversalTab = Window:CreateTab({
+    Name = "Universal",
+    Icon = "user",
+})
 
-Tabs.Universal:AddSlider({
-    Title       = "WalkSpeed",
-    Description = "Sets walk speed (persists on respawn)",
-    Min         = 10,
-    Max         = 200,
-    Value       = 16,
-    Callback    = function(Value)
+UniversalTab:CreateSection({Name = "Movement"})
+
+UniversalTab:CreateSlider({
+    Name = "WalkSpeed",
+    Min = 10,
+    Max = 200,
+    Default = 16,
+    Increment = 1,
+    Callback = function(Value)
         stateWalkSpeed = Value
         if player.Character and player.Character:FindFirstChild("Humanoid") then
             player.Character.Humanoid.WalkSpeed = Value
         end
-    end
+    end,
 })
 
-Tabs.Universal:AddSlider({
-    Title       = "JumpPower",
-    Description = "Sets jump power (persists on respawn)",
-    Min         = 10,
-    Max         = 500,
-    Value       = 50,
-    Callback    = function(Value)
+UniversalTab:CreateSlider({
+    Name = "JumpPower",
+    Min = 10,
+    Max = 500,
+    Default = 50,
+    Increment = 1,
+    Callback = function(Value)
         stateJumpPower = Value
         if player.Character and player.Character:FindFirstChild("Humanoid") then
             player.Character.Humanoid.JumpPower = Value
         end
-    end
+    end,
 })
 
-Tabs.Universal:AddSection("Physics")
+UniversalTab:CreateSection({Name = "Physics"})
 
-Tabs.Universal:AddToggle({
-    Title       = "NoClip",
-    Description = "Walk through walls (persists on respawn)",
-    Default     = false,
-    Callback    = function(Value)
+UniversalTab:CreateToggle({
+    Name = "NoClip",
+    Default = false,
+    Callback = function(Value)
         stateNoClip = Value
         if Value then
             noclipConn = RunService.Stepped:Connect(function()
@@ -232,41 +218,44 @@ Tabs.Universal:AddToggle({
                 end
             end
         end
-    end
+    end,
 })
 
-Tabs.Universal:AddSection("Tools")
+UniversalTab:CreateSection({Name = "Tools"})
 
-Tabs.Universal:AddButton({
-    Title       = "Infinite Yield",
-    Description = "Loads Infinite Yield admin hub",
-    Callback    = function()
+UniversalTab:CreateButton({
+    Name = "Infinite Yield",
+    Callback = function()
         loadstring(game:HttpGet("https://raw.githubusercontent.com/EdgeIY/infiniteyield/master/source", true))()
-    end
+    end,
 })
 
 -- ==========================================
 --  CREDITS TAB
 -- ==========================================
-Tabs.Credits:AddParagraph({
-    Title   = "LUCKY BLOCK Battlegrounds",
+local CreditsTab = Window:CreateTab({
+    Name = "Credits",
+    Icon = "heart",
+})
+
+CreditsTab:CreateParagraph({
+    Title = "LUCKY BLOCK Battlegrounds",
     Content = "Sheitsa Hub V2\nScript made by the Sheitsa Dev Team.\nAll credits go to Sheitsa Dev Team for creating this script.",
 })
 
-Tabs.Credits:AddParagraph({
-    Title   = "UI Library",
-    Content = "Fluent by dawid-scripts\nhttps://github.com/dawid-scripts/Fluent",
+CreditsTab:CreateParagraph({
+    Title = "UI Library",
+    Content = "Rayfield by Sirius\nhttps://sirius.menu",
 })
 
-Tabs.Credits:AddSection("Social")
+CreditsTab:CreateSection({Name = "Social"})
 
-Tabs.Credits:AddButton({
-    Title       = "Join our Discord",
-    Description = "Copies the Discord invite link",
-    Callback    = function()
+CreditsTab:CreateButton({
+    Name = "Join our Discord",
+    Callback = function()
         pcall(setclipboard, DiscordLink)
-        Fluent:Notify({ Title = "LBB", Content = "Discord link copied!", Duration = 3 })
-    end
+        Rayfield:Notify({Title = "LBB", Content = "Discord link copied!", Duration = 3})
+    end,
 })
 
 -- ==========================================
@@ -292,10 +281,10 @@ end)
 -- ==========================================
 --  STARTUP NOTIFICATION
 -- ==========================================
-Fluent:Notify({
-    Title   = "LBB | Sheitsa Hub V2",
-    Content = "Script loaded! Press RightControl to minimize.",
-    Duration = 4
+Rayfield:Notify({
+    Title = "LBB | Sheitsa Hub V2",
+    Content = "Script loaded! Press RightControl to toggle.",
+    Duration = 4,
 })
 
 -- ==========================================
@@ -343,9 +332,7 @@ toggleBtn.InputEnded:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
         if not htDidDrag then
             hubVisible = not hubVisible
-            if fluentGui and fluentGui.Parent then
-                fluentGui.Enabled = hubVisible
-            end
+            Rayfield:SetVisibility(hubVisible)
             tLabel.Text = hubVisible and "LB" or "--"
             tStroke.Color = hubVisible and Color3.fromRGB(190, 190, 200) or Color3.fromRGB(80, 80, 90)
             toggleBtn.BackgroundColor3 = hubVisible and Color3.fromRGB(12, 12, 16) or Color3.fromRGB(30, 30, 36)
@@ -353,7 +340,7 @@ toggleBtn.InputEnded:Connect(function(input)
         htDrag = false
     end
 end)
-UIS.InputChanged:Connect(function(input)
+game:GetService("UserInputService").InputChanged:Connect(function(input)
     if htDrag and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
         local d = input.Position - htDragStart
         if math.abs(d.X) > 5 or math.abs(d.Y) > 5 then htDidDrag = true end
@@ -361,4 +348,4 @@ UIS.InputChanged:Connect(function(input)
     end
 end)
 
-warn("[LBB Sheitsa Hub V2] >> Loaded with Fluent UI!")
+warn("[LBB Sheitsa Hub V2] >> Loaded with Rayfield UI!")
