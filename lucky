@@ -46,12 +46,9 @@ local Window = Rayfield:CreateWindow({
 -- ==========================================
 --  BLOCKS TAB
 -- ==========================================
-local BlocksTab = Window:CreateTab({
-    Name = "Blocks",
-    Icon = "box",
-})
+local BlocksTab = Window:CreateTab("Blocks", "box")
 
-BlocksTab:CreateSection({Name = "Spawn Blocks"})
+BlocksTab:CreateSection("Spawn Blocks")
 
 BlocksTab:CreateDropdown({
     Name = "Block Type",
@@ -105,7 +102,7 @@ BlocksTab:CreateButton({
     end,
 })
 
-BlocksTab:CreateSection({Name = "VERY OP (Gamepass Blocks)"})
+BlocksTab:CreateSection("VERY OP (Gamepass Blocks)")
 
 BlocksTab:CreateDropdown({
     Name = "Gamepass Block",
@@ -160,12 +157,9 @@ BlocksTab:CreateButton({
 -- ==========================================
 --  UNIVERSAL TAB
 -- ==========================================
-local UniversalTab = Window:CreateTab({
-    Name = "Universal",
-    Icon = "user",
-})
+local UniversalTab = Window:CreateTab("Universal", "user")
 
-UniversalTab:CreateSection({Name = "Movement"})
+UniversalTab:CreateSection("Movement")
 
 UniversalTab:CreateSlider({
     Name = "WalkSpeed",
@@ -195,7 +189,7 @@ UniversalTab:CreateSlider({
     end,
 })
 
-UniversalTab:CreateSection({Name = "Physics"})
+UniversalTab:CreateSection("Physics")
 
 UniversalTab:CreateToggle({
     Name = "NoClip",
@@ -221,7 +215,7 @@ UniversalTab:CreateToggle({
     end,
 })
 
-UniversalTab:CreateSection({Name = "Tools"})
+UniversalTab:CreateSection("Tools")
 
 UniversalTab:CreateButton({
     Name = "Infinite Yield",
@@ -233,10 +227,7 @@ UniversalTab:CreateButton({
 -- ==========================================
 --  CREDITS TAB
 -- ==========================================
-local CreditsTab = Window:CreateTab({
-    Name = "Credits",
-    Icon = "heart",
-})
+local CreditsTab = Window:CreateTab("Credits", "heart")
 
 CreditsTab:CreateParagraph({
     Title = "LUCKY BLOCK Battlegrounds",
@@ -248,7 +239,7 @@ CreditsTab:CreateParagraph({
     Content = "Rayfield by Sirius\nhttps://sirius.menu",
 })
 
-CreditsTab:CreateSection({Name = "Social"})
+CreditsTab:CreateSection("Social")
 
 CreditsTab:CreateButton({
     Name = "Join our Discord",
